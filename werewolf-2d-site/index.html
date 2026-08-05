@@ -1,0 +1,2950 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>狼人公寓</title>
+<style>
+  :root{
+    --bg1:#0b0f1e; --bg2:#141b30; --panel:#1b2440; --panel2:#232f54;
+    --gold:#e8b84b; --red:#e35b5b; --green:#5bd68e; --blue:#5b9be3;
+    --text:#eef1fb; --muted:#8a93b8;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    margin:0; font-family:"PingFang SC","Microsoft YaHei",sans-serif;
+    background:radial-gradient(circle at 50% -10%, #202c52 0%, var(--bg1) 60%);
+    color:var(--text); min-height:100vh; max-height:100vh; padding:24px;
+  }
+  #app{max-width:1320px; height:calc(100vh - 48px); margin:0 auto; display:flex; flex-direction:column; overflow:hidden;}
+  #game-screen{min-height:0; overflow:hidden; position:relative;}
+  #game-screen[style*="block"]{display:flex !important; flex-direction:column; flex:1;}
+  .main-row{display:flex; gap:14px; align-items:stretch; min-height:0; overflow:hidden; flex:1;}
+  .role-col{width:315px; flex-shrink:0; align-self:stretch; padding:12px; display:flex; flex-direction:column; min-height:0; overflow:hidden;}
+  .map-col{flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden;}
+  .log-col{width:250px; flex-shrink:0; min-height:0; display:flex; flex-direction:column; overflow:hidden;}
+  .log-col #log{flex:none; min-height:0;}
+  @media (max-width:1100px){
+    .main-row{flex-wrap:nowrap;}
+    .role-col{width:315px; order:1;}
+    .map-col{order:2; flex-basis:auto;}
+    .log-col{order:3; width:250px;}
+    .role-col .role-zones{grid-template-columns:repeat(3, minmax(0,1fr));}
+  }
+  @media (max-width:820px){
+    body{overflow:hidden;}
+    .main-row{flex-direction:row; flex-wrap:nowrap;}
+    .role-col{width:300px;}
+    .log-col{display:none;}
+    .map-col{flex-basis:auto;}
+    .role-col .role-zones{grid-template-columns:1fr;}
+    #chatChoices{grid-template-columns:1fr;}
+    #chatLog .chat-line{flex-basis:100%;}
+  }
+  h1{
+    text-align:center; font-size:3.8em; margin:18px 0 16px;
+    color:var(--gold); letter-spacing:8px; text-shadow:0 0 24px rgba(232,184,75,.45);
+  }
+  .subtitle{text-align:center; color:var(--muted); margin-bottom:10px; font-size:1em;}
+  #start-screen{
+    max-width:760px; min-height:430px; margin:0 auto 86px;
+    display:flex; flex-direction:column; justify-content:center; gap:18px;
+    padding:40px 56px;
+  }
+  #start-screen .subtitle{font-size:1.45em; line-height:1.5; margin-bottom:4px;}
+  #start-screen .center{margin:0 !important;}
+  #start-screen button{font-size:1.24em; padding:17px 30px; min-width:310px;}
+  .start-version{
+    margin-top:14px; text-align:center; color:#fff; font-weight:700; font-size:1.08em;
+    letter-spacing:1px; pointer-events:none;
+  }
+  .move-out-btn{
+    position:absolute; top:0; right:0; z-index:8; min-width:0;
+    padding:8px 14px; border-radius:8px; font-size:.78em;
+    background:#141b30; color:#dce2ff; border:1px solid #3a4678;
+  }
+  .move-out-btn:hover{box-shadow:0 6px 16px rgba(91,155,227,.25);}
+  .mini-btn{
+    min-width:0; padding:6px 10px; border-radius:8px; font-size:.82em;
+    background:#141b30; color:#dce2ff; border:1px solid #3a4678;
+  }
+  .mini-btn:hover{box-shadow:0 6px 16px rgba(91,155,227,.25);}
+  .music-hud{padding:6px 8px;}
+  .copyright{
+    position:fixed; left:0; right:0; bottom:18px; z-index:1;
+    text-align:center; color:#fff; font-weight:700; font-size:1.08em;
+    letter-spacing:1px; margin:0; pointer-events:none;
+  }
+  .card{
+    background:var(--panel); border-radius:16px; padding:20px 24px;
+    box-shadow:0 8px 30px rgba(0,0,0,.4); margin-bottom:18px;
+  }
+  #game-screen .card{margin-bottom:0;}
+  .rules{line-height:1.9; font-size:.95em; color:#d3d8ee;}
+  .rules b{color:var(--gold);}
+  .rules .tip{color:var(--green);}
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:10px;
+    padding:12px 22px; font-size:1em; font-weight:600;
+    background:linear-gradient(135deg,var(--gold),#c9902f); color:#241a04;
+    transition:transform .15s, box-shadow .15s;
+  }
+  button:hover{transform:translateY(-2px); box-shadow:0 6px 16px rgba(232,184,75,.35);}
+  button:disabled{opacity:.4; cursor:not-allowed; transform:none; box-shadow:none;}
+  .center{text-align:center;}
+  #hud{
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:10px; margin-bottom:12px; padding-right:126px; flex:0 0 auto;
+  }
+  .hud-item{background:var(--panel2); padding:8px 16px; border-radius:10px; font-size:.9em; min-width:88px; text-align:center; box-sizing:border-box;}
+  .hud-item b{color:var(--gold); font-variant-numeric:tabular-nums; display:inline-block; min-width:1.4em;}
+
+  #map-wrap{
+    position:relative; width:100%; aspect-ratio:970/620; background:#0d1226; border-radius:12px;
+    overflow:visible; border:1px solid #2a3358;
+  }
+  #map-wrap.night{background:#070a16;}
+  #map{
+    position:absolute; inset:0;
+    transform:none;
+  }
+
+  .stair{position:absolute; background:repeating-linear-gradient(135deg,#26305a,#26305a 8px,#1c2547 8px,#1c2547 16px); border-radius:8px; border:1px solid #384483;}
+  .stair-label{position:absolute; writing-mode:vertical-rl; font-size:.7em; color:var(--muted); left:50%; top:50%; transform:translate(-50%,-50%);}
+
+  .corridor{position:absolute; background:#1a2244; border-top:1px solid #313c6e; border-bottom:1px solid #313c6e;}
+  .floor-tag{position:absolute; font-size:.75em; color:var(--muted); font-weight:700;}
+
+  .room-box{
+    position:absolute; background:var(--panel2); border:2px solid #2f3a68; border-radius:8px 8px 2px 2px;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .room-box.clickable{cursor:pointer;}
+  .room-box.clickable:hover{border-color:var(--gold);}
+  .room-box.you{border-color:var(--blue); box-shadow:0 0 12px rgba(91,155,227,.55);}
+  .room-box.attacked{border-color:var(--red); box-shadow:0 0 18px rgba(227,91,91,.7); animation:pulse 1s infinite;}
+  .room-box.trapped{border-color:var(--red); background:rgba(227,91,91,.18); box-shadow:0 0 10px rgba(227,91,91,.4);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+  .room-num{position:absolute; top:3px; left:6px; font-size:.65em; color:var(--muted); font-weight:700;}
+  .room-noise{position:absolute; top:3px; right:6px; font-size:.62em; color:var(--gold);}
+
+  .person{
+    position:absolute; width:26px; height:40px; margin-left:-13px; margin-top:-40px;
+    z-index:5; pointer-events:none;
+  }
+  /* 人形：头 + 立体躯干 + 两条手臂 + 两条腿 */
+  .person .leg{position:absolute; bottom:0; width:4px; height:10px; background:#2a3364; border-radius:2px;}
+  .person .leg.l{left:8px;}
+  .person .leg.r{left:14px;}
+  .person .arm{position:absolute; bottom:11px; width:4px; height:12px; background:#2f3868; border-radius:2px;}
+  .person .arm.l{left:2px; transform:rotate(10deg); transform-origin:top center;}
+  .person .arm.r{left:20px; transform:rotate(-10deg); transform-origin:top center;}
+
+  /* 真正的3D立体躯干：5个面(前后左右顶)用rotateY/rotateX+translateZ拼成一个立方体 */
+  .person .torso3d{
+    position:absolute; bottom:9px; left:50%; width:14px; height:14px;
+    transform:translateX(-50%); transform-style:preserve-3d;
+  }
+  .person .t-face{position:absolute; width:14px; height:14px; border:1px solid rgba(10,14,30,.5);}
+  .person .t-front{background:linear-gradient(180deg,#3a4680,#232c54); transform:translateZ(5px);}
+  .person .t-back{background:#1c2547; transform:rotateY(180deg) translateZ(5px); filter:brightness(.7);}
+  .person .t-left{width:10px; left:2px; background:#232c54; transform:rotateY(-90deg) translateZ(5px); filter:brightness(.8);}
+  .person .t-right{width:10px; left:2px; background:#2b356a; transform:rotateY(90deg) translateZ(5px); filter:brightness(.9);}
+  .person .t-top{height:10px; background:#4a5794; transform:rotateX(90deg) translateZ(7px); filter:brightness(1.2); border-radius:3px 3px 0 0;}
+
+  .person .head{
+    position:absolute; left:50%; top:0; width:18px; height:18px; transform:translateX(-50%);
+    border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center;
+    font-size:.55em; color:#0b2216; border:2px solid #232f54;
+    background-image:radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%);
+    box-shadow:0 2px 3px rgba(0,0,0,.4);
+  }
+  .person.infected .head{background-color:#767c94; color:#fff;}
+  .person.player .head{background-color:var(--blue); color:#fff; border-color:#cfe4ff; width:22px; height:22px; font-size:.6em;}
+  .person.player{width:30px; z-index:6;}
+  .person.player .torso3d{width:16px; height:16px;}
+  .person.player .t-face{width:16px; height:16px;}
+  .person.player .t-left, .person.player .t-right{width:12px;}
+  .person.player .t-top{height:12px;}
+  .person.player .leg{height:11px;}
+  .person.player .leg.l{left:9px;} .person.player .leg.r{left:16px;}
+  .person.player .arm.l{left:2px;} .person.player .arm.r{left:23px;}
+  .person.dead{display:none;}
+  .person.night-shadow{transition:left 1.1s ease-in-out, top 1.1s ease-in-out, filter .25s;}
+  .person.night-shadow .head{background:#05070f; color:transparent; border-color:#111827; box-shadow:0 0 12px rgba(0,0,0,.8);}
+  .person.night-shadow .leg,.person.night-shadow .arm{background:#05070f;}
+  .person.night-shadow .t-front,.person.night-shadow .t-back,.person.night-shadow .t-left,.person.night-shadow .t-right,.person.night-shadow .t-top{background:#070b14; filter:brightness(.55);}
+  .person.wolf-revealed{z-index:12; filter:drop-shadow(0 0 10px rgba(227,91,91,.65));}
+  .person.wolf-revealed .head{background:#23080d; color:#ffd1d1; border-color:var(--red); font-weight:900;}
+  .person.shiver{animation:shiver .16s linear infinite;}
+  .room-box.night-shake{animation:roomShake .18s linear infinite; border-color:var(--red); box-shadow:0 0 22px rgba(227,91,91,.6);}
+  #nightBlackout{position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:60; transition:opacity .45s ease;}
+  #nightBlackout.active{opacity:1; pointer-events:auto;}
+  @keyframes shiver{0%,100%{transform:translateX(0);}25%{transform:translateX(-1.5px);}75%{transform:translateX(1.5px);}}
+  @keyframes roomShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
+
+  /* 转身：往左走时手臂和腿互换左右位置朝向行进方向，头和躯干本身是对称的不需要处理 */
+  .person.facing-left .leg.l{left:14px;}
+  .person.facing-left .leg.r{left:8px;}
+  .person.facing-left .arm.l{left:20px; transform:rotate(-10deg); transform-origin:top center;}
+  .person.facing-left .arm.r{left:2px; transform:rotate(10deg); transform-origin:top center;}
+  .person.player.facing-left .leg.l{left:16px;}
+  .person.player.facing-left .leg.r{left:9px;}
+  .person.player.facing-left .arm.l{left:23px;}
+  .person.player.facing-left .arm.r{left:2px;}
+
+  #legend{display:flex; gap:16px; justify-content:center; font-size:.8em; color:var(--muted); margin-top:8px; flex-wrap:wrap;}
+  #legend span{display:flex; align-items:center; gap:5px;}
+  .legend-dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+
+  .hint-panel{
+    background:#0f1428; border:1px solid #2a3358; border-radius:10px; padding:12px 14px;
+    margin-bottom:14px; color:#dce2ff; line-height:1.65;
+  }
+  .hint-label{font-size:.72em; color:var(--muted); margin-bottom:5px;}
+  .hint-title{color:var(--gold); font-weight:800; margin-bottom:4px;}
+  #hintText{font-size:.88em;}
+  .role-zones{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:7px; margin:0;}
+  .role-zone{border:1px solid #2a3358; border-radius:10px; padding:7px 8px; background:rgba(15,20,40,.64); opacity:.48;}
+  .role-zone.active{opacity:1; box-shadow:0 0 0 1px rgba(232,184,75,.35), 0 8px 22px rgba(0,0,0,.24);}
+  .role-zone strong{display:block; font-size:.7em; margin-bottom:2px; line-height:1.2;}
+  .role-zone span{display:block; color:#b8bfdc; font-size:.62em; line-height:1.32;}
+  .role-zone.ordinary.active{border-color:var(--blue);}
+  .role-zone.infected.active{border-color:#8b8fa8; background:rgba(118,124,148,.18);}
+  .role-zone.wolf.active{border-color:var(--red); background:rgba(227,91,91,.14);}
+  .chat-panel{margin-top:10px; border-top:1px solid #2a3358; padding-top:10px; min-height:0; overflow:hidden; display:flex; flex-direction:column; flex:1 1 auto;}
+  .chat-title{font-size:.8em; color:var(--gold); font-weight:800; margin-bottom:6px; flex:0 0 auto;}
+  #chatLog{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0; min-height:0; overflow:hidden; align-content:flex-start; align-items:flex-start; flex:1 1 auto;}
+  .chat-line{background:rgba(15,20,40,.62); border:1px solid #263052; border-radius:8px; padding:6px 7px; font-size:.62em; line-height:1.28; color:#cfd6f2; min-height:0; overflow:visible; overflow-wrap:anywhere; word-break:break-word; flex:0 0 calc(50% - 3px);}
+  .chat-line.suspicion,.chat-line.rebuttal{border-color:rgba(232,184,75,.65); color:#f2dca2;}
+  .chat-line.clear{border-color:rgba(91,214,142,.45); color:#c8f1d8;}
+  .chat-line.player{border-color:rgba(91,155,227,.58); color:#d9eaff;}
+  .chat-line.risk{border-color:rgba(227,91,91,.62); color:#ffd1d1;}
+  .chat-speaker{font-weight:800; color:#fff;}
+  .chat-actions{display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-start; align-items:center; margin-bottom:7px; flex:0 0 auto;}
+  .chat-actions button,.chat-choice{padding:6px 8px; border-radius:8px; font-size:.68em; min-width:0;}
+  #chatChoices{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px; margin:0 0 7px; flex:0 0 auto;}
+  .chat-muted{font-size:.68em; color:var(--muted); line-height:1.35;}
+  #log{
+    overflow:hidden; font-size:.76em; line-height:1.34;
+    color:#c6cbe6; background:#0f1428; border-radius:10px; padding:8px 12px;
+  }
+  #log div{border-bottom:1px dashed #262f52; padding:3px 0;}
+  #log div:last-child{border-bottom:none;}
+  #log div.log-ordinary{color:#cfe0ff;}
+  #log div.log-infected{color:#d6d7e8;}
+  #log div.log-wolf{color:#ffd1d1;}
+  #log div.log-system{color:#f3d58b;}
+  #controls{display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px; min-height:44px;}
+  #victory-chat-screen,#end-screen{display:none; text-align:center;}
+  #end-screen h2{font-size:1.8em; margin-bottom:8px;}
+  #endChat,#victoryChat{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:16px auto 0; max-width:820px; text-align:left;}
+  .victory-chat-title{color:var(--gold); font-size:1.45em; margin-bottom:8px;}
+  .end-chat-line{background:#0f1428; border:1px solid #2a3358; border-radius:10px; padding:9px 11px; color:#dce2ff; font-size:.9em; line-height:1.55;}
+  .end-chat-line.wolf{border-color:rgba(227,91,91,.7); color:#ffd1d1;}
+  .end-chat-line.infected{border-color:rgba(118,124,148,.75); color:#e0e1ef;}
+  .end-chat-line.player{border-color:rgba(91,155,227,.7); color:#d9eaff;}
+  .end-chat-line.shock{border-color:rgba(232,184,75,.65); color:#f3dca4;}
+  .win{color:var(--green);}
+  .lose{color:var(--red);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(5,7,16,.75); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-box{
+    background:var(--panel); border-radius:16px; padding:22px 26px; max-width:640px; width:100%;
+    max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.55); border:1px solid #2a3358;
+  }
+  .modal-header{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+    font-size:1.1em; color:var(--gold); font-weight:700;
+  }
+  .modal-close{padding:6px 12px; font-size:.9em; border-radius:8px;}
+  @media (max-width:520px){
+    body{padding:14px;}
+    h1{font-size:2.55em; letter-spacing:3px; line-height:1.15; margin-top:22px;}
+    #start-screen{min-height:420px; padding:26px 18px; margin-bottom:76px; gap:14px;}
+    #start-screen .subtitle{font-size:1.18em;}
+    #start-screen button{width:100%; min-width:0; font-size:1.08em; padding:14px 16px;}
+    .move-out-btn{width:auto; top:0; right:0; padding:8px 12px; font-size:.76em;}
+    #hud{padding-right:0; margin-top:42px;}
+    .start-version{margin-top:10px; font-size:.95em;}
+    .copyright{bottom:14px; font-size:.95em;}
+    .card{padding:16px;}
+    button{width:100%; padding:11px 14px;}
+    #controls button{width:auto; max-width:100%;}
+    #endChat,#victoryChat{grid-template-columns:1fr;}
+    .hud-item{flex:1 1 130px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1> 狼人公寓 </h1>
+
+  <div id="start-screen" class="card">
+    <div class="subtitle">4层 · 每层5户 · 20位住户 · 1个狼人</div>
+    <div class="center" style="margin-bottom:16px;">
+      <button onclick="openRulesModal()">📖 规则（与其他狼人杀不一样，第一次游玩必看）</button>
+    </div>
+    <div id="returnWrap" class="center" style="display:none;">
+      <button id="returnBtn" onclick="returnToApartment()">↩️ 再次搬回</button>
+    </div>
+    <div class="center">
+      <button id="startBtn" onclick="startGame()" disabled>🚪 搬进公寓</button>
+    </div>
+    <div class="start-version">V 1.0.66</div>
+    <div class="copyright">@ 2026 Cherish Zhang 版权所有</div>
+  </div>
+
+  <div id="rules-modal" class="modal-overlay" style="display:none;" onclick="if(event.target.id==='rules-modal') closeRulesModal();">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>📖 游戏规则</span>
+        <button class="modal-close" onclick="closeRulesModal()">✕</button>
+      </div>
+      <div class="rules">
+        你和19位邻居住进一栋4层楼、每层5户共20间房的公寓，两端各有一部楼梯，走动时自动抄近路。<br><br>
+        其中<b>1位邻居（或你）是狼人</b>，白天伪装成普通住户，没人认得出来。<br><br>
+        <b>☀️ 白天（30秒，实时）</b>：点击房间即可穿过走廊、楼梯走过去躲藏（可以是别人的房间）。邻居也会自己走动，有人会因为"人多安全"跟着抱团。时间到自动天黑。<br><br>
+        <b>⚠️ 在半路</b>：天黑时还留在走廊或楼梯上，若狼人当晚对你所在楼层下手，你会跟着遭殃——记得提前躲进房间。<br><br>
+        <b>🌙 夜晚</b>：狼人凭<b>动静</b>判断房间——人越多、声音越大，越容易被盯上。一旦盯上某间房，会在里面<b>随机杀死一人</b>。<br><br>
+        <b>🧟 感染</b>：被盯上的房间里，除了遇害的人，其余人（<b>你也可能在内</b>）都不会死，但会被感染，加入狼人阵营，从此和狼人共享同一条线索。阵营可能越滚越大。<br><br>
+        <b>🐺 被感染后</b>：不会再被袭击，还能亲自挑房间下手——但你只会把一间房的人感染，不会杀人（只有狼人才能杀人）；走位要符合线索，连续 3 次不符合会自动痊愈，重新可被袭击。<br><br>
+        <b>🚪 房间限住4人</b>：住满了就进不去了。<br><br>
+        <b>🔍 指认狼人</b>：可点"我知道狼人是谁"（如果你是狼人，就不会出现这个按钮）选定嫌疑人（就算你自己被感染了也能指认），最多同时盯上 3 个人。等你们都走出房间、在走廊或楼梯上擦肩而过就会动手。揍对直接获胜（被感染的人也会清醒），揍错直接失败，务必谨慎！<br><br>
+        <b>🧪 药水陷阱</b>：每个嫌疑人都可以单独改用药水——点"用药水设陷阱"（如果你是狼人，不会出现这个按钮），再选任意一间房，那间房会变红，狼人一旦走进去就会中招，结算方式和擦肩而过一样。<br><br>
+        <b>🗣️ 邻居也会怀疑人</b>：邻居有时会自己怀疑，来问你要不要一起动手。选<b>一起动手</b>：由你亲自出手，猜对照样获胜，猜错则由最初怀疑的邻居代你受过，你和嫌疑人都没事。选<b>不参与</b>：交给邻居自己处理，不影响你的胜负，只影响存活人数。<br><br>
+        <b>😨 你也可能被怀疑</b>：邻居也有概率盯上你——一旦被它靠近，你的身份就会败露，直接判决；如果那时你不是狼人，邻居只会扑空，反而会被真正的狼人得手。<br><br>
+        <b>🏆 赛制</b>：预赛、半决赛、决赛——未感染人数剩8人进半决赛，剩3人进决赛（死亡或真正被感染都算淘汰，狼人伪装不算感染）。<br><br>
+        <b>⏰ 加时</b>：正常赛程8天，第8天结束还没分出胜负，就会自动进入加时赛，到水落石出为止。<br><br>
+        <span class="tip">💡 策略：动静按人数放大——独自躲藏最安静，但一旦被盯上就是你；房间越挤，被袭击和被感染的风险都越高。</span><br><br>
+        被袭击 = 失败。活到只剩你和狼人阵营 = 胜利！（中途被感染也算数，只要活到最后）
+      </div>
+      <div class="center" style="margin-top:18px;">
+        <button onclick="closeRulesModal()">我看完了，关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="npc-offer-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-header"><span>🗣️ 悄悄话</span></div>
+      <div id="npcOfferText" style="line-height:1.8; font-size:1em; color:#d3d8ee;"></div>
+      <div class="center" style="margin-top:18px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button id="npcOfferJoinBtn" onclick="respondNpcOffer(true)">🤝 一起动手</button>
+        <button onclick="respondNpcOffer(false)">🙅 不参与</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-screen" style="display:none;">
+    <div id="nightBlackout"></div>
+    <button id="moveOutBtn" class="move-out-btn" onclick="moveOutApartment()">🚪 搬出公寓</button>
+    <div id="hud">
+      <div class="hud-item">🏆 <b id="stageLabel">预赛</b></div>
+      <div class="hud-item">📅 第 <b id="dayNum">1</b> 天</div>
+      <div class="hud-item">🪪 我现在是：<b id="identityLabel">普通住户</b></div>
+      <div class="hud-item">🕐 <b id="phaseLabel">白天</b></div>
+      <div class="hud-item">⏱ <b id="timerLabel">0:30</b></div>
+      <div class="hud-item">🧍 存活 <b id="aliveNum">20</b> 人</div>
+      <div class="hud-item music-hud"><button id="musicBtn" class="mini-btn" onclick="toggleMusic()">🎵 开音乐</button></div>
+    </div>
+    <div class="main-row">
+      <div class="role-col card">
+        <div class="role-zones" aria-label="身份专区">
+          <div id="zone-ordinary" class="role-zone ordinary">
+            <strong>普通邻居专区</strong>
+            <span>找线索、避袭击、谨慎指认。事件会用住户视角记录。</span>
+          </div>
+          <div id="zone-infected" class="role-zone infected">
+            <strong>被感染者专区</strong>
+            <span>你属于狼人阵营，可扩散感染；白天要按线索伪装。</span>
+          </div>
+          <div id="zone-wolf" class="role-zone wolf">
+            <strong>狼人专区</strong>
+            <span>白天混在人群里，夜晚亲自选目标。事件会用狼人视角记录。</span>
+          </div>
+        </div>
+        <div class="chat-panel" aria-label="邻居闲聊">
+          <div class="chat-title">💬 邻居闲聊</div>
+          <div id="chatActions" class="chat-actions"></div>
+          <div id="chatChoices"></div>
+          <div id="chatLog"></div>
+        </div>
+      </div>
+      <div class="map-col">
+        <div class="card">
+          <div id="map-wrap"><div id="map"></div></div>
+          <div id="legend">
+            <span><span class="legend-dot" style="background:var(--blue);"></span>你</span>
+            <span><span class="legend-dot" style="background:var(--green);"></span>邻居（可能有狼人）</span>
+            <span><span class="legend-dot" style="background:#767c94;"></span>已感染，加入狼人阵营</span>
+            <span>🔊 数字 = 房间实时人数</span>
+            <span>点击房间可移动过去</span>
+          </div>
+          <div id="wolfClueBar" style="text-align:center; margin-top:6px; font-size:.8em;">
+            <span id="wolfClue" style="color:var(--gold);"></span>
+          </div>
+        </div>
+        <div id="controls"></div>
+      </div>
+      <div class="log-col card">
+        <div id="hint-panel" class="hint-panel">
+          <div class="hint-label">💡 当前提示</div>
+          <div id="hintTitle" class="hint-title">白天行动</div>
+          <div id="hintText">点击地图上的房间移动，尽量在天黑前躲进房间。</div>
+        </div>
+        <div id="logTitle" style="font-size:.8em; color:var(--muted); margin-bottom:8px;">📜 最新事件</div>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="victory-chat-screen" class="card">
+    <h2 class="victory-chat-title">💬 公寓最后的声音</h2>
+    <p id="victoryChatReveal" style="color:#f3dca4; font-weight:800; line-height:1.7; margin:0 0 8px;"></p>
+    <p id="victoryChatDesc" style="color:#c6cbe6;">真相已经不重要了，剩下的人终于反应过来。</p>
+    <div id="victoryChat"></div>
+    <div id="victoryChatActions" class="chat-actions center" style="margin-top:12px;"></div>
+    <div class="center" style="margin-top:18px;">
+      <button onclick="finishVictory()">🏆 爽够了，胜利</button>
+    </div>
+  </div>
+
+  <div id="end-screen" class="card">
+    <h2 id="endTitle"></h2>
+    <p id="endDesc" style="color:#c6cbe6;"></p>
+    <div id="endChat"></div>
+    <div class="center" style="margin-top:16px;">
+      <button onclick="location.reload()">🔄 重新开始</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PLAYER_PUBLIC_NAME = '陆氏';
+const PLAYER_SELF_NAME = '你';
+const NPC_NAMES = ["王氏","李氏","张氏","刘氏","陈氏","杨氏","赵氏","周氏","吴氏","郑氏","孙氏","马氏","朱氏","冯氏","许氏","何氏","高氏","林氏","罗氏"];
+const FLOORS = [1,2,3,4];
+const ROOMS_PER_FLOOR = 5;
+const DAY_DURATION = 30; // 秒，白天实时时长
+const SPEED = 230; // 逻辑单位/秒
+const ROOM_CAPACITY = 4; // 每间房最多住4个人
+const VIOLATION_LIMIT = 3; // 被感染的玩家连续几次不符合线索，就会自动"痊愈"
+const MAX_DAY = 8; // 正常赛程天数，到了还没分胜负就进入加时赛
+const MAX_SUSPECTS = 3; // 玩家最多同时盯上3个嫌疑人
+const MAX_VISIBLE_LOGS = 8; // 右侧只显示最近8条，避免玩家上下滑动
+const MAX_VISIBLE_CHAT_LINES = 10; // 左侧邻居闲聊最多显示10条，不强制填满
+const MAX_NPC_CHAT_LINES = 2; // 同一个NPC在可见闲聊里最多出现2条，避免刷屏
+const MAX_NPC_CHAT_LINES_FINAL = 1; // 决赛人数时每个NPC只说一句，避免左右互搏
+const MAX_END_CHAT_LINES = 6; // 胜利结算最多显示6条反应台词
+const PLAYER_WEREWOLF_CHANCE = 0.55; // 开局你就是狼人的概率，0.55=55%
+const PLAYER_ORDINARY_CHANCE = 0.35; // 开局你是普通人的概率，0.35=35%
+const PLAYER_INFECTED_CHANCE = 0.10; // 开局你是被感染者的概率，0.10=10%
+
+const WOLF_TRAITS = [
+  { id:'oddRooms',    clue:'🔍 线索：它好像总是住在单号房间。' },
+  { id:'evenRooms',   clue:'🔍 线索：它好像总是住在双号房间。' },
+  { id:'quietLover',  clue:'🔍 线索：它好像总喜欢躲到人少的房间。' },
+  { id:'topFloor',    clue:'🔍 线索：它好像很少离开4楼。' },
+  { id:'groundFloor', clue:'🔍 线索：它好像总待在1楼附近。' },
+  { id:'homebody',    clue:'🔍 线索：它不喜欢挪窝。' }
+];
+
+// ---- 楼层平面图坐标系（逻辑单位 970x620，用百分比铺满 #map） ----
+const BUILDING_W = 970, BUILDING_H = 620;
+const STAIR_LEFT = 20, STAIR_WIDTH = 50, STAIR_TOP = 20, STAIR_HEIGHT = 550;
+const STAIR_X = STAIR_LEFT + STAIR_WIDTH/2;
+const STAIR2_LEFT = 900, STAIR2_WIDTH = 50; // 右侧的第二部楼梯
+const STAIR2_X = STAIR2_LEFT + STAIR2_WIDTH/2;
+const FLOOR_TOPS = {4:20, 3:170, 2:320, 1:470};
+const ROOM_BAND_H = 70, CORRIDOR_BAND_H = 30;
+const ROOM_AREA_X0 = 90, ROOM_GAP = 10;
+const ROOM_W = (860 - ROOM_AREA_X0 - ROOM_GAP*4) / 5; // 5间房，4个间隙
+
+let people = [];
+let allRoomIds = [];
+let ROOM_META = {}; // rid -> {floor, left, doorX, corridorY, interiorX, interiorYBase}
+let roomOf = {};       // 当前已"到达"并停留的房间（在途中的人不计入任何房间）
+let inTransit = {};    // id -> bool
+let posX = {}, posY = {}; // 当前可视坐标（逻辑单位）
+let pathOf = {};       // id -> [{x,y}, ...]
+let pathIdx = {};
+let destRoomOf = {};
+let npcNextDecision = {};
+let strandedFloor = {}; // 天黑时还卡在走廊/楼梯上的人，记录当时所在楼层
+let werewolfTrait = null;
+let currentClueText = ''; // 这局的线索文本；第1天还没人传开，第2天起才会显示给玩家
+let facingLeft = {}; // id -> bool，记录每个人最近一次朝左还是朝右走，用来让人物转身面朝行进方向
+let playerViolations = 0; // 玩家被感染后，走位不符合线索的次数
+let suspects = []; // [{suspectId, viaNpcId, trapRoomId}] 玩家同时盯上的嫌疑人，最多 MAX_SUSPECTS 个
+let showAccuseList = false;
+let showCureList = false; // 是否正在显示解除感染选择列表
+let pendingNpcOffer = null; // {accuserId, suspectId} 邻居向玩家发出的"要不要一起动手"邀请
+let npcAccusation = null; // {accuserId, suspectId} 玩家选择不参与后，邻居自己进行的对峙
+let placingTrapFor = null; // 正在为哪个嫌疑人"点击房间布药"，null表示不在布药模式
+let accusationViaTrap = false; // 这次对峙是靠药水陷阱触发的，还是擦肩而过的近身对质
+let npcHuntsPlayer = null; // {accuserId} 玩家被感染后，邻居盯上了玩家本人，正在靠近对质
+let midDaySuspicionChecked = false; // 这一天是否已经检查过"白天过半再怀疑一次"
+let inOvertime = false; // 超过 MAX_DAY 还没分胜负，进入加时赛
+let currentStage = '预赛'; // 预赛 | 半决赛 | 决赛，按存活人数划分
+let chatLines = []; // [{speaker, text, type}] 左侧邻居闲聊
+let chatChoicesOpen = false;
+let playerChatUsedToday = false;
+let playerChatActionToday = null; // null | 'spoke' | 'silent'，避免把发言误判成沉默
+let chatSuspectId = null; // 邻居闲聊中当前被提到的可疑对象
+let chatClearedId = null; // 邻居闲聊中当前暂时没嫌疑的对象
+let nextChatAt = 0; // 白天下一句邻居闲聊出现的时间点
+let suspectedHistory = []; // 这局曾被玩家或邻居怀疑过的人
+let pendingVictoryWerewolfId = null;
+let victoryChatLines = [];
+let victoryChatDeck = [];
+let victoryChatTimer = null;
+let musicEnabled = false;
+let musicContext = null;
+let musicMaster = null;
+let musicNodes = [];
+let musicPatternTimer = null;
+let currentMusicTrack = null;
+let musicStep = 0;
+let alive = new Set();
+let day = 1;
+let phase = 'day'; // day | night-locked | night-choose | night-wolf | resolved | over
+let simClock = 0;
+let lastAttackedRoom = null;
+let morningKillChatPending = null;
+let gameOver = false;
+let movedOutGameAvailable = false;
+let nightCinematicActive = false;
+let nightCinematicTargetRoom = null;
+let nightCinematicWolfId = null;
+let nightCinematicShakeRoom = null;
+let nightBlackout = false;
+let nightCinematicTimers = [];
+let rafId = null;
+let lastFrameTime = null;
+let hasReadRules = loadRulesRead();
+
+function loadRulesRead(){
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem('werewolfApartmentRulesRead') === 'yes'; }
+  catch (e) { return false; }
+}
+function saveRulesRead(){
+  try { if (typeof localStorage !== 'undefined') localStorage.setItem('werewolfApartmentRulesRead', 'yes'); }
+  catch (e) {}
+}
+function initStartButton(){
+  const startBtn = document.getElementById('startBtn');
+  if (!startBtn) return;
+  startBtn.disabled = !hasReadRules;
+  startBtn.textContent = hasReadRules ? (movedOutGameAvailable ? '🚪 搬进公寓（重新开始）' : '🚪 搬进公寓') : '🚪 搬进公寓（先看规则）';
+  const returnWrap = document.getElementById('returnWrap');
+  if (returnWrap) returnWrap.style.display = movedOutGameAvailable && !gameOver ? '' : 'none';
+}
+
+
+function musicTrackForState(){
+  if (gameOver) return null;
+  if (currentStage === '决赛') return 'final';
+  if (phase === 'day') return 'day';
+  if (phase === 'night-locked' || phase === 'night-choose' || phase === 'night-wolf' || phase === 'resolved') return 'night';
+  return null;
+}
+function musicTrackName(track){
+  if (track === 'day') return '白天';
+  if (track === 'night') return '夜晚';
+  if (track === 'final') return '决赛';
+  return '音乐';
+}
+function updateMusicButton(){
+  const btn = document.getElementById('musicBtn');
+  if (!btn) return;
+  const track = musicTrackForState();
+  btn.textContent = musicEnabled && track ? ('🎵 ' + musicTrackName(track)) : '🎵 开音乐';
+  btn.title = musicEnabled ? '关闭背景音乐' : '开启背景音乐';
+}
+function ensureMusicContext(){
+  const audioRoot = typeof window !== 'undefined' ? window : globalThis;
+  const AudioCtor = audioRoot.AudioContext || audioRoot.webkitAudioContext;
+  if (!AudioCtor) return null;
+  if (!musicContext){
+    musicContext = new AudioCtor();
+    musicMaster = musicContext.createGain();
+    musicMaster.gain.value = 0.42;
+    musicMaster.connect(musicContext.destination);
+  }
+  if (musicContext.state === 'suspended') musicContext.resume();
+  return musicContext;
+}
+function clearMusicNodes(){
+  if (musicPatternTimer && typeof clearInterval === 'function') clearInterval(musicPatternTimer);
+  musicPatternTimer = null;
+  musicNodes.forEach(node=>{
+    try { if (node.stop) node.stop(); } catch (e) {}
+    try { if (node.disconnect) node.disconnect(); } catch (e) {}
+  });
+  musicNodes = [];
+  musicStep = 0;
+}
+function musicNote(freq, dur=0.45, gain=0.055, type='sine'){
+  if (!musicContext || !musicMaster) return;
+  const now = musicContext.currentTime;
+  const osc = musicContext.createOscillator();
+  const vol = musicContext.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  vol.gain.setValueAtTime(0.0001, now);
+  vol.gain.exponentialRampToValueAtTime(gain, now + 0.04);
+  vol.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  osc.connect(vol);
+  vol.connect(musicMaster);
+  osc.start(now);
+  osc.stop(now + dur + 0.05);
+}
+function startMusicTrack(track){
+  const ctx = ensureMusicContext();
+  if (!ctx || !track) return;
+  clearMusicNodes();
+  currentMusicTrack = track;
+
+  const drone = ctx.createOscillator();
+  const droneGain = ctx.createGain();
+  drone.type = track === 'night' ? 'sine' : 'triangle';
+  drone.frequency.value = track === 'day' ? 82.41 : (track === 'night' ? 55 : 73.42);
+  droneGain.gain.value = track === 'night' ? 0.10 : 0.08;
+  drone.connect(droneGain);
+  droneGain.connect(musicMaster);
+  drone.start();
+  musicNodes.push(drone, droneGain);
+
+  const patterns = {
+    day: { notes:[196, 233.08, 261.63, 233.08, 174.61], gap:760, dur:.44, gain:.11, type:'triangle' },
+    night: { notes:[98, 87.31, 116.54, 73.42], gap:1280, dur:.72, gain:.095, type:'sine' },
+    final: { notes:[174.61, 196, 207.65, 233.08, 261.63, 233.08], gap:520, dur:.35, gain:.12, type:'sawtooth' }
+  };
+  const p = patterns[track];
+  const tick = () => {
+    musicNote(p.notes[musicStep % p.notes.length], p.dur, p.gain, p.type);
+    musicStep += 1;
+  };
+  tick();
+  if (typeof setInterval === 'function') musicPatternTimer = setInterval(tick, p.gap);
+}
+function updateMusicForPhase(){
+  updateMusicButton();
+  if (!musicEnabled) return;
+  const track = musicTrackForState();
+  if (!track){ stopMusic(false); return; }
+  if (track !== currentMusicTrack) startMusicTrack(track);
+}
+function toggleMusic(){
+  musicEnabled = !musicEnabled;
+  if (musicEnabled) updateMusicForPhase();
+  else stopMusic(true);
+  updateMusicButton();
+}
+function stopMusic(disable=false){
+  clearMusicNodes();
+  currentMusicTrack = null;
+  if (disable) musicEnabled = false;
+}
+function markGameOver(){
+  gameOver = true;
+  stopMusic(false);
+  updateMusicButton();
+}
+function pauseMusic(){
+  if (musicContext && musicContext.state === 'running') musicContext.suspend();
+}
+function resumeMusic(){
+  if (musicEnabled && musicContext && musicContext.state === 'suspended') musicContext.resume();
+  updateMusicForPhase();
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function buildRoomMeta(){
+  ROOM_META = {};
+  allRoomIds = [];
+  FLOORS.forEach(floor=>{
+    for (let idx=1; idx<=ROOMS_PER_FLOOR; idx++){
+      const rid = floor*100+idx;
+      allRoomIds.push(rid);
+      const left = ROOM_AREA_X0 + (idx-1)*(ROOM_W+ROOM_GAP);
+      const doorX = left + ROOM_W/2;
+      const floorTop = FLOOR_TOPS[floor];
+      const corridorY = floorTop + ROOM_BAND_H + CORRIDOR_BAND_H/2;
+      ROOM_META[rid] = {
+        floor, left, doorX, corridorY,
+        interiorX: doorX, interiorYBase: floorTop + ROOM_BAND_H/2, floorTop
+      };
+    }
+  });
+}
+
+function slotOffset(slot){
+  const col = slot % 4, row = Math.floor(slot/4);
+  return { dx: (col-1.5)*22, dy: (row-1.5)*15 };
+}
+
+function interiorPos(rid, slot){
+  const m = ROOM_META[rid];
+  const off = slotOffset(slot);
+  return { x: m.interiorX+off.dx, y: m.interiorYBase+off.dy };
+}
+
+// 根据当前可视 y 坐标，判断某人此刻离哪一层的走廊最近（用于走廊/楼梯上的人）
+function personFloor(id){
+  let best=null, bestDist=Infinity;
+  FLOORS.forEach(f=>{
+    const cy = ROOM_META[f*100+1].corridorY;
+    const d = Math.abs(posY[id]-cy);
+    if (d<bestDist){ bestDist=d; best=f; }
+  });
+  return best;
+}
+
+// 让狼人在游戏开始时的房间也符合它的行为线索（比如"总住单号房"），线索才立得住
+function enforceInitialTraitPlacement(){
+  const werewolf = people.find(p=>p.isWerewolf);
+  const validRoomFor = rid => {
+    if (werewolfTrait==='oddRooms') return rid%2===1;
+    if (werewolfTrait==='evenRooms') return rid%2===0;
+    if (werewolfTrait==='topFloor') return Math.floor(rid/100)===4;
+    if (werewolfTrait==='groundFloor') return Math.floor(rid/100)===1;
+    return true; // quietLover / homebody 与初始房间无关
+  };
+  const currentRoom = roomOf[werewolf.id];
+  if (validRoomFor(currentRoom)) return;
+  const swapTarget = people.find(p=>p.id!==werewolf.id && validRoomFor(roomOf[p.id]));
+  if (!swapTarget) return;
+  const otherRoom = roomOf[swapTarget.id];
+  roomOf[werewolf.id] = otherRoom;
+  roomOf[swapTarget.id] = currentRoom;
+}
+
+// 狼人（以及后来被感染的人）"独立随机走动"时按同一条线索偏好挑房间；其他情况（跟随/抱团/留守）不受影响
+function randomRoomForPerson(id){
+  const person = peopleById(id);
+  const pickFrom = pool => {
+    const finalPool = pool.filter(roomHasSpace);
+    return finalPool.length>0 ? finalPool[Math.floor(Math.random()*finalPool.length)] : null;
+  };
+  if (person.isPack && werewolfTrait){
+    if (werewolfTrait==='oddRooms'){
+      const picked = pickFrom(allRoomIds.filter(r=>r%2===1));
+      if (picked) return picked;
+    }
+    if (werewolfTrait==='evenRooms'){
+      const picked = pickFrom(allRoomIds.filter(r=>r%2===0));
+      if (picked) return picked;
+    }
+    if (werewolfTrait==='topFloor'){
+      const picked = pickFrom(allRoomIds.filter(r=>Math.floor(r/100)===4));
+      if (picked) return picked;
+    }
+    if (werewolfTrait==='groundFloor'){
+      const picked = pickFrom(allRoomIds.filter(r=>Math.floor(r/100)===1));
+      if (picked) return picked;
+    }
+    if (werewolfTrait==='quietLover'){
+      const roomsWithSpace = allRoomIds.filter(roomHasSpace);
+      const counts = (roomsWithSpace.length>0 ? roomsWithSpace : allRoomIds).map(r=>({r, n:occupantsOf(r).length}));
+      const minN = Math.min(...counts.map(c=>c.n));
+      const pool = counts.filter(c=>c.n===minN).map(c=>c.r);
+      return pool[Math.floor(Math.random()*pool.length)];
+    }
+  }
+  const picked = pickFrom(allRoomIds);
+  return picked !== null ? picked : roomOf[id];
+}
+
+function initGame(){
+  people = [{id:'player', name:PLAYER_PUBLIC_NAME, isPlayer:true, isWerewolf:false, isPack:false, isInfected:false}];
+  NPC_NAMES.forEach((name,i)=>{
+    people.push({id:'npc'+i, name, isPlayer:false, isWerewolf:false, isPack:false, isInfected:false});
+  });
+  const roleRoll = Math.random();
+  const playerStartsWerewolf = roleRoll < PLAYER_WEREWOLF_CHANCE;
+  const playerStartsInfected = !playerStartsWerewolf && roleRoll >= PLAYER_WEREWOLF_CHANCE + PLAYER_ORDINARY_CHANCE;
+  const wolfIdx = playerStartsWerewolf ? 0 : 1 + Math.floor(Math.random()*NPC_NAMES.length);
+  people[wolfIdx].isWerewolf = true;
+  people[wolfIdx].isPack = true;
+  people[wolfIdx].isInfected = false; // 真狼人可以把“被感染者”当伪装层，但开局先露出狼人核心身份
+  if (playerStartsInfected){
+    const player = peopleById('player');
+    player.isPack = true;
+    player.isInfected = true;
+  }
+
+  const traitDef = WOLF_TRAITS[Math.floor(Math.random()*WOLF_TRAITS.length)];
+  werewolfTrait = traitDef.id;
+
+  buildRoomMeta();
+
+  const shuffledRooms = shuffle(allRoomIds);
+  const initialRooms = [];
+  while (initialRooms.length < people.length) initialRooms.push(...shuffledRooms);
+  roomOf = {}; inTransit = {}; posX = {}; posY = {}; pathOf = {}; pathIdx = {}; destRoomOf = {}; strandedFloor = {};
+  people.forEach((p,i)=>{ roomOf[p.id] = initialRooms[i]; });
+
+  enforceInitialTraitPlacement();
+
+  facingLeft = {};
+  const initialRoomSlots = {};
+  people.forEach(p=>{
+    inTransit[p.id] = false;
+    const slot = initialRoomSlots[roomOf[p.id]] || 0;
+    initialRoomSlots[roomOf[p.id]] = slot + 1;
+    const pos = interiorPos(roomOf[p.id], slot);
+    posX[p.id] = pos.x; posY[p.id] = pos.y;
+    pathOf[p.id] = null; pathIdx[p.id] = 0; destRoomOf[p.id] = null;
+    facingLeft[p.id] = false;
+  });
+
+  alive = new Set(people.map(p=>p.id));
+  day = 1;
+  phase = 'day';
+  simClock = 0;
+  gameOver = false;
+  lastAttackedRoom = null;
+  morningKillChatPending = null;
+  playerViolations = 0;
+  suspects = [];
+  showAccuseList = false;
+  showCureList = false;
+  pendingNpcOffer = null;
+  npcAccusation = null;
+  placingTrapFor = null;
+  accusationViaTrap = false;
+  npcHuntsPlayer = null;
+  midDaySuspicionChecked = false;
+  inOvertime = false;
+  currentStage = '预赛';
+  chatLines = [];
+  chatChoicesOpen = false;
+  playerChatUsedToday = false;
+  playerChatActionToday = null;
+  chatSuspectId = null;
+  chatClearedId = null;
+  nextChatAt = 0;
+  suspectedHistory = [];
+  pendingVictoryWerewolfId = null;
+  scheduleNpcDecisions();
+
+  clearLog();
+  const player = peopleById('player');
+  if (player.isWerewolf){
+    addLog('🏠 你搬进了 ' + roomLabel(roomOf['player']) + '。20位住户，只有你是狼人；白天有30秒混在人群里，别被邻居识破。', 'wolf');
+    addLog('🐺 夜晚由你挑目标。房间越挤，脚步声越容易被混淆。', 'wolf');
+  } else if (genuineInfected(player)){
+    addLog('🏠 你搬进了 ' + roomLabel(roomOf['player']) + '。你开局已被感染，属于狼人阵营，但不是狼人。', 'infected');
+    addLog('🩹 白天可以帮一个人解除感染；夜晚你会扩散感染，不会杀人。', 'infected');
+  } else {
+    addLog('🏠 你搬进了 ' + roomLabel(roomOf['player']) + '。20位住户，1人是狼人；白天只有30秒，抓紧找安全位置。', 'ordinary');
+  }
+  addLog('🏆 赛制：未感染8人进半决赛，3人进决赛；' + MAX_DAY + '天后加时。', 'system');
+  currentClueText = traitDef.clue;
+  randomizeNpcWolfDisguise();
+  generateNeighborChat();
+  scheduleNextNeighborChat();
+  buildMapChrome();
+  maybeSpawnNpcAccusation();
+  render();
+  resumeGameLoop();
+  resumeMusic();
+  if (phase==='night-locked' && !nightCinematicActive && timedNightCinematicAvailable()) beginNightCinematic();
+}
+
+function scheduleNpcDecisions(){
+  people.forEach(p=>{
+    if (!p.isPlayer) npcNextDecision[p.id] = simClock + 1 + Math.random()*4;
+  });
+}
+
+function roomLabel(rid){
+  return rid + '室';
+}
+
+function peopleById(id){ return people.find(p=>p.id===id); }
+
+function nearestRoomToPerson(id){
+  if (!peopleById(id)) return null;
+  let best = roomOf[id], bestDist = Infinity;
+  allRoomIds.forEach(rid=>{
+    const m = ROOM_META[rid];
+    const dx = posX[id] - m.interiorX;
+    const dy = posY[id] - m.interiorYBase;
+    const d = dx*dx + dy*dy;
+    if (d < bestDist){ bestDist = d; best = rid; }
+  });
+  return best;
+}
+function surroundingRoomsOf(rid){
+  if (!rid) return [];
+  const floor = Math.floor(rid/100);
+  const roomNo = rid % 100;
+  const rooms = [];
+  for (let f=floor-1; f<=floor+1; f++){
+    if (!FLOORS.includes(f)) continue;
+    for (let n=roomNo-1; n<=roomNo+1; n++){
+      if (n>=1 && n<=ROOMS_PER_FLOOR) rooms.push(f*100+n);
+    }
+  }
+  return rooms;
+}
+function wolfAttackRooms(wolf){
+  if (!wolf || !alive.has(wolf.id)) return [];
+  return surroundingRoomsOf(nearestRoomToPerson(wolf.id));
+}
+
+
+function timedNightCinematicAvailable(){ return typeof setTimeout === 'function'; }
+function clearNightCinematicTimers(){
+  if (typeof clearTimeout === 'function') nightCinematicTimers.forEach(id=>clearTimeout(id));
+  nightCinematicTimers = [];
+}
+function queueNightCinematic(fn, ms){
+  if (!timedNightCinematicAvailable()) return null;
+  const id = setTimeout(fn, ms);
+  nightCinematicTimers.push(id);
+  return id;
+}
+function updateNightBlackout(){
+  const overlay = document.getElementById('nightBlackout');
+  if (overlay) overlay.classList.toggle('active', !!nightBlackout);
+}
+function resetNightCinematic(){
+  clearNightCinematicTimers();
+  nightCinematicActive = false;
+  nightCinematicTargetRoom = null;
+  nightCinematicWolfId = null;
+  nightCinematicShakeRoom = null;
+  nightBlackout = false;
+  updateNightBlackout();
+}
+function nightOccupantsMap(){
+  const map = {};
+  allRoomIds.forEach(rid=>{ map[rid]=[]; });
+  people.forEach(p=>{
+    if (p.isPack) return;
+    if (!alive.has(p.id)) return;
+    if (inTransit[p.id]) return;
+    map[roomOf[p.id]].push(p.id);
+  });
+  return map;
+}
+function previewNightTarget(forcedTargetRoom){
+  const infectedHuntNight = (phase === 'night-choose');
+  const playerWolfHuntNight = (phase === 'night-wolf');
+  const werewolf = people.find(p=>p.isWerewolf);
+  const wolfAttacker = infectedHuntNight ? null : (playerWolfHuntNight ? peopleById('player') : werewolf);
+  const allowedAttackRooms = wolfAttacker ? wolfAttackRooms(wolfAttacker) : null;
+  const occupantsMap = nightOccupantsMap();
+  const weightedRooms = allRoomIds.filter(rid=>
+    occupantsMap[rid].length>0 && (!allowedAttackRooms || allowedAttackRooms.includes(rid))
+  );
+  if (forcedTargetRoom && allowedAttackRooms && !allowedAttackRooms.includes(forcedTargetRoom)){
+    return { invalid:true, wolfId:wolfAttacker && wolfAttacker.id };
+  }
+  if (forcedTargetRoom && (!occupantsMap[forcedTargetRoom] || occupantsMap[forcedTargetRoom].length===0)){
+    return { empty:true, wolfId:wolfAttacker && wolfAttacker.id };
+  }
+  if (forcedTargetRoom) return { targetRoom:forcedTargetRoom, wolfId:wolfAttacker && wolfAttacker.id };
+  if (weightedRooms.length===0) return { targetRoom:null, wolfId:wolfAttacker && wolfAttacker.id };
+  const noiseOf = rid => occupantsMap[rid].length * occupantsMap[rid].length;
+  const totalWeight = weightedRooms.reduce((s,rid)=>s+noiseOf(rid),0);
+  let r = Math.random()*totalWeight;
+  let targetRoom = weightedRooms[weightedRooms.length-1];
+  for (const rid of weightedRooms){
+    r -= noiseOf(rid);
+    if (r <= 0){ targetRoom = rid; break; }
+  }
+  return { targetRoom, wolfId:wolfAttacker && wolfAttacker.id };
+}
+function beginNightCinematic(forcedTargetRoom){
+  if (!timedNightCinematicAvailable()){
+    resolveNight(forcedTargetRoom, true);
+    return;
+  }
+  const preview = previewNightTarget(forcedTargetRoom);
+  if (preview.invalid || preview.empty){
+    resolveNight(forcedTargetRoom, true);
+    return;
+  }
+  resetNightCinematic();
+  nightCinematicActive = true;
+  nightCinematicTargetRoom = preview.targetRoom;
+  nightCinematicWolfId = preview.wolfId;
+  nightCinematicShakeRoom = null;
+  nightBlackout = false;
+  render();
+  queueNightCinematic(()=>{
+    nightCinematicShakeRoom = nightCinematicTargetRoom;
+    resolveNight(nightCinematicTargetRoom, true);
+    render();
+  }, 650);
+  queueNightCinematic(()=>{
+    nightCinematicActive = false;
+    nightCinematicTargetRoom = null;
+    nightCinematicWolfId = null;
+    nightCinematicShakeRoom = null;
+    render();
+  }, 1250);
+}
+function finishResolvedNight(){
+  phase = 'resolved';
+  render();
+}
+
+function occupantsOf(rid){
+  return people.filter(p=> alive.has(p.id) && !inTransit[p.id] && roomOf[p.id]===rid).map(p=>p.id);
+}
+
+// 房间容量：已经在房里的人 + 正往这间房赶路的人，一起占用名额
+function roomLoad(rid){
+  let n = 0;
+  people.forEach(p=>{
+    if (!alive.has(p.id)) return;
+    if (!inTransit[p.id] && roomOf[p.id]===rid) n++;
+    else if (inTransit[p.id] && destRoomOf[p.id]===rid) n++;
+  });
+  return n;
+}
+function roomHasSpace(rid){ return roomLoad(rid) < ROOM_CAPACITY; }
+
+// 某个房间号是否符合当前这条线索（用来判断"感染的玩家"这步走得像不像狼人）
+function roomMatchesTrait(rid){
+  if (werewolfTrait==='oddRooms') return rid%2===1;
+  if (werewolfTrait==='evenRooms') return rid%2===0;
+  if (werewolfTrait==='topFloor') return Math.floor(rid/100)===4;
+  if (werewolfTrait==='groundFloor') return Math.floor(rid/100)===1;
+  if (werewolfTrait==='quietLover') return occupantsOf(rid).length<=1;
+  return true; // homebody 单独处理（看是否"愿意留守"，不看具体房间）
+}
+
+function clearLog(){ document.getElementById('log').innerHTML=''; }
+function trimLog(){
+  const log = document.getElementById('log');
+  while (log.children.length > MAX_VISIBLE_LOGS){
+    log.removeChild(log.firstChild);
+  }
+}
+function genuineInfected(person){
+  return !!(person && person.isInfected && !person.isWerewolf);
+}
+function uninfectedSurvivorCount(){
+  return people.filter(p=>alive.has(p.id) && !genuineInfected(p)).length;
+}
+function visibleRoleOf(person){
+  if (!person) return 'system';
+  if (person.isWerewolf && person.isInfected) return 'infected'; // 真狼人伪装成被感染者时，表面身份先骗过别人
+  if (person.isWerewolf) return 'wolf';
+  if (person.isInfected) return 'infected';
+  return 'ordinary';
+}
+function playerRole(){
+  return visibleRoleOf(peopleById('player'));
+}
+function publicNameOf(person){
+  return person && person.isPlayer ? PLAYER_PUBLIC_NAME : (person ? person.name : '');
+}
+function selfNameOf(person){
+  return person && person.isPlayer ? PLAYER_SELF_NAME : (person ? person.name : '');
+}
+function roleEventLabel(role){
+  if (role==='wolf') return '狼影';
+  if (role==='infected') return '感染低语';
+  if (role==='ordinary') return '住户记录';
+  return '公寓广播';
+}
+function livingChatters(){
+  const regular = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+  if (regular.length) return regular;
+  return people.filter(p=>!p.isPlayer && alive.has(p.id));
+}
+function finalFewAlive(){ return alive && alive.size <= 4; }
+function npcVisibleLineLimit(){ return finalFewAlive() ? MAX_NPC_CHAT_LINES_FINAL : MAX_NPC_CHAT_LINES; }
+function npcChatCount(name){
+  return chatLines.filter(line=>line.speaker===name).length;
+}
+function chatStance(type, text=''){
+  if (type==='clear' || type==='rebuttal') return 'clear';
+  if (type==='suspicion' || type==='risk') return 'suspect';
+  if (/可疑|怀疑|盯着|抓|推我|最奇怪/.test(text)) return 'suspect';
+  if (/污蔑|冤枉|对不上|不太一样|先别把|可是被感染|别只盯|不像狼人/.test(text)) return 'clear';
+  return 'neutral';
+}
+function npcHasOppositeStance(name, nextStance){
+  if (nextStance==='neutral') return false;
+  return chatLines.some(line=>{
+    if (line.speaker!==name) return false;
+    const old = chatStance(line.type, line.text);
+    return old!=='neutral' && old!==nextStance;
+  });
+}
+function canAddChatLine(speaker, type='normal', text=''){
+  if (speaker===PLAYER_SELF_NAME || !NPC_NAMES.includes(speaker)) return true;
+  if (npcChatCount(speaker) >= npcVisibleLineLimit()) return false;
+  return !npcHasOppositeStance(speaker, chatStance(type, text));
+}
+function pickChatSpeaker(excludeIds=[]){
+  const exclude = new Set(excludeIds);
+  const pool = livingChatters().filter(p=>!exclude.has(p.id) && canAddChatLine(p.name));
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function rememberSuspicion(id){
+  if (id && !suspectedHistory.includes(id)) suspectedHistory.push(id);
+}
+function addChatLine(speaker, text, type='normal'){
+  if (!canAddChatLine(speaker, type, text)) return false;
+  const lastTexts = chatLines.slice(-4).map(line=>line.text);
+  if (lastTexts.includes(text)){
+    const sameSpeaker = chatLines.slice(-4).some(line=>line.speaker===speaker && line.text===text);
+    if (sameSpeaker) return false;
+  }
+  chatLines.push({ speaker, text, type });
+  while (chatLines.length > MAX_VISIBLE_CHAT_LINES) chatLines.shift();
+  return true;
+}
+function scheduleNextNeighborChat(){
+  nextChatAt = simClock + 3.5 + Math.random()*4.5;
+}
+function candidateMatchesClue(p){
+  if (!p || !alive.has(p.id)) return false;
+  if (werewolfTrait==='homebody') return !inTransit[p.id];
+  if (inTransit[p.id]) return false;
+  return roomMatchesTrait(roomOf[p.id]);
+}
+function suspicionText(name){
+  if (werewolfTrait==='oddRooms') return name + '老靠单号房。';
+  if (werewolfTrait==='evenRooms') return name + '总在双号房。';
+  if (werewolfTrait==='topFloor') return name + '总往4楼走。';
+  if (werewolfTrait==='groundFloor') return name + '一直绕1楼。';
+  if (werewolfTrait==='quietLover') return name + '总钻人少房。';
+  return name + '几乎没挪窝。';
+}
+function clearText(name){
+  if (werewolfTrait==='homebody') return name + '一直换位，不像线索。';
+  return name + '走向不像线索。';
+}
+function infectionDefenseText(name, self=false){
+  return shuffle(self ? [
+    '我被感染了，怎么会是狼人？',
+    '我是被感染者，别乱扣帽子。',
+    '真狼人不会这样暴露吧？'
+  ] : [
+    name + '被感染了，不像真狼人。',
+    '先别把' + name + '当真狼人。',
+    name + '像被感染者，狼在别处。'
+  ])[0];
+}
+function accusedRebuttalText(){
+  return shuffle([
+    '别污蔑，我不像线索。',
+    '我的路线对不上线索。',
+    '凭什么说我可疑？',
+    '那些动静别算我头上。'
+  ])[0];
+}
+function counterSuspicionText(){
+  return shuffle([
+    '那倒像你。',
+    '你盯人也很怪。',
+    '你刚才也在附近。',
+    '先讲清你自己的路线。'
+  ])[0];
+}
+function bystanderChatText(){
+  return shuffle([
+    '先看路线，别吵。',
+    '别只听一边。',
+    '这两人都得盯。',
+    '乱抓会害死人。'
+  ])[0];
+}
+function morningKillChatText(info){
+  return shuffle([
+    info.victimName + '被杀了！狼人肯定在周围！',
+    '昨天那个大胆讲话的被杀了，其他人有危险！',
+    '那里一直有狼人，快跑！'
+  ])[0];
+}
+function addMorningKillChat(){
+  if (!morningKillChatPending) return;
+  const info = morningKillChatPending;
+  morningKillChatPending = null;
+  if (Math.random() >= 0.4) return;
+  const speaker = pickChatSpeaker();
+  if (speaker) addChatLine(speaker.name, morningKillChatText(info), 'risk');
+}
+function playerRebuttalText(){
+  const role = playerRole();
+  if (role==='wolf') return shuffle([
+    '别急着扣帽子，线索本来就不是证据。',
+    '你盯着我，不如先看看真正反常的人。',
+    '我走得明显不符合线索，怎么就成狼人了？',
+    '你现在抓我，正好让真正可疑的人溜过去。'
+  ])[0];
+  if (role==='infected') return shuffle([
+    '别把我往狼人那边推，我也不想被卷进去。',
+    '我只是听见动静才换地方，不代表我站狼人。',
+    '你现在逼我，只会让真正的狼人看笑话。',
+    '先看清楚线索，别急着把我推出去。'
+  ])[0];
+  return shuffle([
+    '别乱说，我走的一点也不像狼人。',
+    '你不要污蔑人！我的路线和线索根本对不上。',
+    '我只是换个位置观察动静，不代表我可疑。',
+    '先看线索，别把所有怀疑都扣到我头上。'
+  ])[0];
+}
+function endingShockTexts(){
+  return shuffle([
+    '不对啊……他走的和线索一点都对不上！',
+    '他怎么可能是狼人？下次不能疏忽了！',
+    '原来线索也会骗人，我们被它绕过去了。',
+    '我还以为它不符合线索，结果最会装的就是它。',
+    '我怎么记得他是被感染者？',
+    '狼人竟然可以切换身份？我下次试试！'
+  ]);
+}
+function endingRightSuspectTexts(){
+  return shuffle([
+    '我就说它不对劲！原来我一直怀疑是对的！',
+    '早知道该早点动手，差一点就抓住它了。',
+    '我明明感觉到它有问题，可惜没人信。'
+  ]);
+}
+function endingWolfLaughTexts(){
+  return shuffle([
+    '哈哈！狼人当然可以和线索反着走！',
+    '如果我会输，这里还能叫“狼人公寓”吗？',
+    '你们盯着线索，我盯着你们。',
+    '线索只是给你们看的，不是给我守的。',
+    '下次记住，最不像狼的，也可能就是狼。'
+  ]);
+}
+function endingInfectedTexts(){
+  return shuffle([
+    '我表面护着狼人，可我记得是谁把我拖进来的。',
+    '这不是忠诚，是活下去。',
+    '狼人赢了，但我迟早会让它付代价。'
+  ]);
+}
+function renderChatLines(boxId, lines, limit=MAX_END_CHAT_LINES, newest=false){
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = '';
+  const visible = newest ? lines.slice(-limit) : lines.slice(0, limit);
+  visible.forEach(line=>{
+    const div = document.createElement('div');
+    div.className = 'end-chat-line ' + (line.type || 'shock');
+    div.textContent = line.speaker + '：' + line.text;
+    box.appendChild(div);
+  });
+}
+function renderEndChat(lines){ renderChatLines('endChat', lines, MAX_END_CHAT_LINES, false); }
+function renderVictoryChat(lines){ renderChatLines('victoryChat', lines, MAX_VISIBLE_CHAT_LINES, true); }
+function endingSpeakerDeck(){
+  const infected = people.filter(p=>!p.isPlayer && p.isInfected).map(p=>p.name);
+  const suspected = suspectedHistory.map(id=>peopleById(id)).filter(p=>p && !p.isPlayer).map(p=>p.name);
+  const living = people.filter(p=>!p.isPlayer && alive.has(p.id)).map(p=>p.name);
+  return shuffle([...new Set([...suspected, ...infected, ...living])]);
+}
+function endingDisguiseTexts(){
+  return shuffle([
+    '我怎么记得他是被感染者？',
+    '狼人竟然可以切换身份？我下次试试！',
+    '原来被感染者的位置也可能藏着真狼人。'
+  ]);
+}
+function wolfSpeakerName(werewolf){
+  if (!werewolf) return '狼人';
+  return werewolf.isPlayer ? PLAYER_SELF_NAME : werewolf.name;
+}
+function victoryRevealText(werewolf){
+  if (!werewolf) return '最开始的狼人已经暴露！你逃过了袭击，还是胜利了。';
+  const label = wolfSpeakerName(werewolf) + '（' + roomLabel(roomOf[werewolf.id]) + '）';
+  return werewolf.isPlayer
+    ? (label + '是最开始的狼人！你活到了最后，还是胜利了。')
+    : (label + '是最开始的狼人！你逃过了他的袭击，还是胜利了。');
+}
+function buildWolfWinEndChat(werewolf){
+  const lines = [];
+  const speakers = endingSpeakerDeck();
+  const takeName = () => speakers.length ? speakers.shift() : '邻居';
+  const player = peopleById('player');
+  if (player.isWerewolf){
+    endingWolfLaughTexts().slice(0,3).forEach(text=>lines.push({speaker:'你', text, type:'player'}));
+    if (player.isInfected) endingDisguiseTexts().slice(0,2).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    endingShockTexts().slice(0,2).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    lines.push({speaker:takeName(), text:endingRightSuspectTexts()[0], type:'shock'});
+  } else if (player.isInfected){
+    endingInfectedTexts().slice(0,3).forEach(text=>lines.push({speaker:'你', text, type:'infected'}));
+    endingShockTexts().slice(0,2).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    lines.push({speaker:wolfSpeakerName(werewolf), text:endingWolfLaughTexts()[0], type:'wolf'});
+  } else {
+    if (werewolf && werewolf.isInfected) endingDisguiseTexts().slice(0,2).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    endingShockTexts().slice(0,3).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    endingRightSuspectTexts().slice(0,2).forEach(text=>lines.push({speaker:takeName(), text, type:'shock'}));
+    lines.push({speaker:wolfSpeakerName(werewolf), text:endingWolfLaughTexts()[0], type:'wolf'});
+  }
+  return lines;
+}
+function clearVictoryChatTimer(){
+  if (victoryChatTimer && typeof clearInterval==='function') clearInterval(victoryChatTimer);
+  victoryChatTimer = null;
+}
+function buildVictoryChatDeck(werewolf){
+  const speakers = endingSpeakerDeck();
+  const takeName = () => speakers.length ? speakers.shift() : '邻居';
+  return shuffle([
+    ...buildWolfWinEndChat(werewolf),
+    {speaker:takeName(), text:'等一下，我还是没想明白刚才那步。', type:'shock'},
+    {speaker:takeName(), text:'它白天那条路线，根本不像线索。', type:'shock'},
+    {speaker:takeName(), text:'早知道该听最后那句怀疑。', type:'shock'},
+    {speaker:takeName(), text:'这栋楼以后谁还敢住？', type:'shock'},
+    {speaker:wolfSpeakerName(werewolf), text:'你们看见线索，我看见机会。', type:'wolf'},
+    {speaker:wolfSpeakerName(werewolf), text:'下一次，先别相信自己的眼睛。', type:'wolf'}
+  ]);
+}
+function pushVictoryChatLine(line){
+  victoryChatLines.push(line);
+  while (victoryChatLines.length > MAX_VISIBLE_CHAT_LINES) victoryChatLines.shift();
+  renderVictoryChat(victoryChatLines);
+}
+function nextVictoryChatLine(){
+  const screen = document.getElementById('victory-chat-screen');
+  if (!screen || screen.style.display==='none'){ clearVictoryChatTimer(); return; }
+  const werewolf = peopleById(pendingVictoryWerewolfId) || people.find(p=>p.isWerewolf);
+  if (!victoryChatDeck.length) victoryChatDeck = buildVictoryChatDeck(werewolf);
+  pushVictoryChatLine(victoryChatDeck.shift());
+}
+function victoryReplyOptions(){
+  const player = peopleById('player');
+  if (player && player.isWerewolf) return [
+    ['线索是给你们看的。','player'],
+    ['现在才发现太晚了。','player'],
+    ['狼人公寓，当然有狼人。','player']
+  ];
+  if (player && player.isInfected) return [
+    ['我只是活到了最后。','infected'],
+    ['别看我，我也被拖进来了。','infected'],
+    ['现在说什么都晚了。','infected']
+  ];
+  return [
+    ['我就说哪里不对。','player'],
+    ['现在才安静下来。','player'],
+    ['这次算我活下来了。','player']
+  ];
+}
+function playerVictoryReply(text, type){
+  pushVictoryChatLine({speaker:'你', text, type:type || 'player'});
+  const werewolf = peopleById(pendingVictoryWerewolfId) || people.find(p=>p.isWerewolf);
+  const replies = buildVictoryChatDeck(werewolf);
+  pushVictoryChatLine(replies[0]);
+  renderVictoryChatActions();
+}
+function renderVictoryChatActions(){
+  const actions = document.getElementById('victoryChatActions');
+  if (!actions) return;
+  actions.innerHTML = '';
+  victoryReplyOptions().forEach(([text,type])=>{
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.onclick = () => playerVictoryReply(text, type);
+    actions.appendChild(btn);
+  });
+}
+function generateNeighborChat(){
+  chatLines = [];
+  chatChoicesOpen = false;
+  chatSuspectId = null;
+  chatClearedId = null;
+
+  let speakerDeck = shuffle(livingChatters());
+  let lastSpeakerId = null;
+  function nextSpeaker(excludeIds=[]){
+    const blocked = new Set(excludeIds);
+    if (!speakerDeck.length) speakerDeck = shuffle(livingChatters());
+    if (!speakerDeck.length) return null;
+    let idx = speakerDeck.findIndex(p=>p.id!==lastSpeakerId && !blocked.has(p.id) && canAddChatLine(p.name));
+    if (idx < 0) idx = speakerDeck.findIndex(p=>!blocked.has(p.id) && canAddChatLine(p.name));
+    if (idx < 0) return null;
+    const speaker = speakerDeck.splice(idx, 1)[0];
+    lastSpeakerId = speaker.id;
+    return speaker;
+  }
+  function neighborSay(text, type='normal', excludeIds=[]){
+    const speaker = nextSpeaker(excludeIds);
+    if (speaker && addChatLine(speaker.name, text, type)) return speaker;
+    return null;
+  }
+  function personSay(person, text, type='normal'){
+    if (!person) return;
+    if (addChatLine(selfNameOf(person), text, type)) lastSpeakerId = person.id;
+  }
+
+  const generic = shuffle(finalFewAlive() ? [
+    '剩几人了，看路线。',
+    '说话要有依据。',
+    '先对线索再盯人。',
+    '最后别瞎猜。'
+  ] : (day < 2 ? [
+    '太安静了。',
+    '先别急着站队。',
+    '走廊动静很明显。',
+    '房间别太挤。',
+    '先记住谁住哪。'
+  ] : [
+    '昨晚楼梯有人急走。',
+    '人多房本来吵。',
+    '昨天总换房的人可疑。',
+    '天黑还在走廊很危险。',
+    '一次走位不够。'
+  ]));
+  neighborSay(generic[0]);
+
+  const suspectPool = people.filter(p=>alive.has(p.id) && (!p.isInfected || p.isWerewolf) && (!p.isPlayer || p.isPack));
+  const clueMatches = suspectPool.filter(candidateMatchesClue);
+  const suspect = clueMatches.length ? clueMatches[Math.floor(Math.random()*clueMatches.length)] : suspectPool[Math.floor(Math.random()*suspectPool.length)];
+  if (suspect && day>=2){
+    chatSuspectId = suspect.id;
+    rememberSuspicion(suspect.id);
+    const accuser = neighborSay(suspicionText(publicNameOf(suspect)), 'suspicion', [suspect.id]);
+    if (suspect.isInfected && Math.random()<0.8){
+      if (suspect.isPlayer && Math.random()<0.5) personSay(suspect, infectionDefenseText(PLAYER_PUBLIC_NAME, true), 'player');
+      else neighborSay(infectionDefenseText(publicNameOf(suspect)), 'clear', [suspect.id]);
+    }
+    if (Math.random()<0.9){
+      personSay(suspect, accusedRebuttalText(), 'rebuttal');
+      if (accuser && Math.random()<0.55){
+        personSay(suspect, counterSuspicionText(), 'suspicion');
+        if (!accuser.isPack && alive.has(accuser.id) && Math.random()<0.35){ chatSuspectId = accuser.id; rememberSuspicion(accuser.id); }
+      } else {
+        neighborSay(bystanderChatText(), 'normal');
+      }
+    }
+  }
+
+  const clearPool = people.filter(p=>!p.isPlayer && alive.has(p.id) && !p.isPack && p.id!==chatSuspectId && !candidateMatchesClue(p));
+  const cleared = clearPool[Math.floor(Math.random()*clearPool.length)];
+  if (cleared && day>=2 && chatLines.length < MAX_VISIBLE_CHAT_LINES){
+    chatClearedId = cleared.id;
+    neighborSay(clearText(cleared.name), 'clear', [cleared.id]);
+  }
+
+  const mood = shuffle(finalFewAlive() ? [
+    '别听空话，看行动。',
+    '最后先排证据。',
+    '替人说话要讲理由。',
+    '变来变去更可疑。'
+  ] : (day < 2 ? [
+    '第一天别乱猜。',
+    '先看谁乱跑。',
+    '人人正常才吓人。',
+    '别堵在走廊。'
+  ] : [
+    '有人像在替狼开脱。',
+    '挡话要讲理由。',
+    '突然不怕夜晚才危险。',
+    '狼人也会装好心。'
+  ]));
+  if (chatLines.length < MAX_VISIBLE_CHAT_LINES) neighborSay(mood[0]);
+}
+function addOngoingNeighborChat(){
+  if (phase!=='day' || !alive.has('player')) return;
+  const roll = Math.random();
+  if (day>=2 && roll < 0.34){
+    const suspectPool = people.filter(p=>alive.has(p.id) && (!p.isInfected || p.isWerewolf) && (!p.isPlayer || p.isPack));
+    const clueMatches = suspectPool.filter(candidateMatchesClue);
+    const suspect = clueMatches.length ? clueMatches[Math.floor(Math.random()*clueMatches.length)] : suspectPool[Math.floor(Math.random()*suspectPool.length)];
+    const speaker = suspect ? pickChatSpeaker([suspect.id]) : pickChatSpeaker();
+    if (suspect && speaker){
+      chatSuspectId = suspect.id;
+      rememberSuspicion(suspect.id);
+      addChatLine(speaker.name, suspicionText(publicNameOf(suspect)), 'suspicion');
+      if (suspect.isInfected && Math.random()<0.55){
+        const helper = pickChatSpeaker([speaker.id, suspect.id]);
+        if (helper) addChatLine(helper.name, infectionDefenseText(publicNameOf(suspect)), 'clear');
+      } else if (Math.random()<0.45){
+        addChatLine(selfNameOf(suspect), accusedRebuttalText(), 'rebuttal');
+      }
+    }
+  } else if (day>=2 && roll < 0.56){
+    const clearPool = people.filter(p=>!p.isPlayer && alive.has(p.id) && !p.isPack && p.id!==chatSuspectId && !candidateMatchesClue(p));
+    const cleared = clearPool[Math.floor(Math.random()*clearPool.length)];
+    const speaker = cleared ? pickChatSpeaker([cleared.id]) : pickChatSpeaker();
+    if (cleared && speaker){
+      chatClearedId = cleared.id;
+      addChatLine(speaker.name, clearText(cleared.name), 'clear');
+    } else if (speaker) {
+      addChatLine(speaker.name, bystanderChatText(), 'normal');
+    }
+  } else {
+    const speaker = pickChatSpeaker();
+    if (!speaker){ scheduleNextNeighborChat(); return; }
+    const smallTalk = shuffle(finalFewAlive() ? [
+      '别用感觉当证据。',
+      '先盯路线怪的。',
+      '说不清就别站队。',
+      '每次换房都算。'
+    ] : (day < 2 ? [
+      '刚才谁走楼梯？',
+      '安静的人也怪。',
+      '别太散也别太挤。',
+      '天黑前还会换房。',
+      '先别把走位当铁证。',
+      '人数在变，今晚不稳。'
+    ] : [
+      '刚才谁走楼梯？',
+      '安静的人也怪。',
+      '别太散也别太挤。',
+      '天黑前还会换房。',
+      '今天该有破绽。',
+      '后面只看路线。'
+    ]));
+    const recent = new Set(chatLines.slice(-4).map(line=>line.text));
+    addChatLine(speaker.name, smallTalk.find(text=>!recent.has(text)) || smallTalk[0], 'normal');
+  }
+  scheduleNextNeighborChat();
+  renderChatPanel();
+}
+function chatOptionsForRole(){
+  const role = playerRole();
+  if (role==='wolf') return [
+    ['别分散。','deflect'],
+    ['声音太乱。','deflect'],
+    ['线索会误伤。','deflect']
+  ];
+  if (role==='infected') return [
+    ['狼人未必单线行动。','deflect'],
+    ['那房太吵，谁都危险。','deflect'],
+    ['先别抓太死。','deflect']
+  ];
+  return [
+    ['楼梯那边有动静。','help'],
+    ['先看线索。','careful'],
+    ['有人老靠人多房。','help'],
+    ['不确定，别冤枉。','careful']
+  ];
+}
+function openChatChoices(){
+  if (phase!=='day' || playerChatUsedToday || !alive.has('player')) return;
+  chatChoicesOpen = !chatChoicesOpen;
+  render();
+}
+function staySilentChat(){
+  if (phase!=='day' || playerChatUsedToday || !alive.has('player')) return;
+  playerChatUsedToday = true;
+  playerChatActionToday = 'silent';
+  chatChoicesOpen = false;
+  addChatLine(PLAYER_SELF_NAME, '你先听，今天沉默。', 'player');
+  render();
+}
+function playerChat(text, tone){
+  if (phase!=='day' || playerChatUsedToday || !alive.has('player')) return;
+  const player = peopleById('player');
+  playerChatUsedToday = true;
+  playerChatActionToday = 'spoke';
+  chatChoicesOpen = false;
+  addChatLine(PLAYER_SELF_NAME, text, player.isPack ? 'risk' : 'player');
+  if (player.isPack){
+    if (Math.random()<0.45){
+      const watcher = pickChatSpeaker();
+      if (watcher){
+        addChatLine(watcher.name, '你像在转移视线。', 'risk');
+        chatSuspectId = 'player';
+        maybeSpawnNpcHuntsPlayer();
+      }
+    }
+  } else if (chatSuspectId && chatSuspectId!=='player'){
+    const suspect = peopleById(chatSuspectId);
+    const accuser = pickChatSpeaker([chatSuspectId]);
+    if (suspect && accuser){
+      addChatLine(accuser.name, '先盯着 ' + suspect.name + '，别急着动手。', 'suspicion');
+      if (!pendingNpcOffer && !npcAccusation && Math.random()<0.45){
+        pendingNpcOffer = { accuserId: accuser.id, suspectId: suspect.id };
+  rememberSuspicion(suspect.id);
+      }
+    }
+  }
+  render();
+}
+function playerRebuttal(){
+  if (phase!=='day' || !alive.has('player') || chatSuspectId!=='player') return;
+  addChatLine(PLAYER_SELF_NAME, playerRebuttalText(), 'rebuttal');
+  if (Math.random()<0.6){
+    const speaker = pickChatSpeaker();
+    if (speaker) addChatLine(speaker.name, '先别只盯' + PLAYER_PUBLIC_NAME + '。', 'clear');
+    chatSuspectId = null;
+    npcHuntsPlayer = null;
+  } else {
+    const speaker = pickChatSpeaker();
+    if (speaker) addChatLine(speaker.name, '能听，但还会盯你。', 'risk');
+  }
+  render();
+}
+function renderChatPanel(){
+  const log = document.getElementById('chatLog');
+  const actions = document.getElementById('chatActions');
+  const choices = document.getElementById('chatChoices');
+  if (!log || !actions || !choices) return;
+  log.innerHTML = '';
+  chatLines.forEach(line=>{
+    const div = document.createElement('div');
+    div.className = 'chat-line ' + (line.type || 'normal');
+    const speaker = document.createElement('span');
+    speaker.className = 'chat-speaker';
+    speaker.textContent = line.speaker + '：';
+    div.appendChild(speaker);
+    div.appendChild(document.createTextNode(line.text));
+    log.appendChild(div);
+  });
+  actions.innerHTML = '';
+  choices.innerHTML = '';
+  if (phase!=='day' || !alive.has('player')){
+    const muted = document.createElement('div');
+    muted.className = 'chat-muted';
+    muted.textContent = '夜晚没人闲聊。';
+    actions.appendChild(muted);
+    return;
+  }
+  if (chatSuspectId==='player'){
+    const rebut = document.createElement('button');
+    rebut.textContent = '我反驳';
+    rebut.onclick = playerRebuttal;
+    actions.appendChild(rebut);
+  }
+  if (playerChatUsedToday){
+    const muted = document.createElement('div');
+    muted.className = 'chat-muted';
+    muted.textContent = chatSuspectId==='player'
+      ? '你已发言，但仍可反驳。'
+      : (playerChatActionToday==='silent' ? '今天你已经选择保持沉默。' : '今天你已经说过一句了。');
+    actions.appendChild(muted);
+    return;
+  }
+  const talk = document.createElement('button');
+  talk.textContent = '我也说一句';
+  talk.onclick = openChatChoices;
+  actions.appendChild(talk);
+  const silent = document.createElement('button');
+  silent.textContent = '保持沉默';
+  silent.onclick = staySilentChat;
+  actions.appendChild(silent);
+  if (chatChoicesOpen){
+    chatOptionsForRole().forEach(([text,tone])=>{
+      const btn = document.createElement('button');
+      btn.className = 'chat-choice';
+      btn.textContent = text;
+      btn.onclick = () => playerChat(text, tone);
+      choices.appendChild(btn);
+    });
+  }
+}
+function shortLogText(msg){
+  let text = msg
+    .replace('20位住户，只有你是狼人；白天有30秒混在人群里，别被邻居识破。', '你是狼人，30秒伪装。')
+    .replace('20位住户，1人是狼人；白天只有30秒，抓紧找安全位置。', '1人是狼人，30秒找房。')
+    .replace(/房间越挤，脚步声越容易被混淆。/g, '房越挤越好藏。')
+    .replace(/未感染8人进半决赛，3人进决赛；(\d+)天后加时。/g, '8人半决赛，3人决赛；$1天后加时。')
+    .replace(/你开局已被感染，属于狼人阵营，但不是狼人。/g, '你开局被感染，不是狼人。')
+    .replace(/白天可以帮一个人解除感染；夜晚你会扩散感染，不会杀人。/g, '白天可救感染；夜晚扩散感染。')
+    .replace(/公寓恢复平静[。，]/g, '')
+    .replace(/你仍披着被感染者身份，夜晚照样可以杀人。/g, '你披感染外壳，夜晚仍能杀。')
+    .replace(/白天继续伪装，夜晚再选择目标。/g, '白天伪装，夜晚选目标。')
+    .replace(/你已经是狼人一伙，白天要继续按线索伪装。/g, '你属狼人阵营，按线索伪装。')
+    .replace(/你有30秒时间寻找安全位置……/g, '你有30秒找安全房。')
+    .replace(/昨晚的怀疑暂时散了。邻居不会继续追着昨天的怀疑对象，但新的走位还是可能引起注意。/g, '昨晚怀疑散了，今天重新看走位。')
+    .replace(/邻居暂时放下了昨天对你的怀疑。今天重新观察走位，别再露出破绽。/g, '邻居暂时放下怀疑，今天别露破绽。')
+    .replace(/已经 (\d+) 天了还没分出胜负——公寓正式进入加时赛，继续到水落石出为止！/g, '$1天未分胜负，进入加时！')
+    .replace(/你把狼人身份藏到被感染者外壳下面。表面像被感染者，夜晚仍能杀人。/g, '你披感染外壳，夜晚仍能杀。')
+    .replace(/你收起感染伪装，重新露出狼人身份。/g, '你收起伪装，露出狼身。')
+    .replace(/走得不像"线索"里说的那样，感染褪去了——你变回普通人，今晚起可能会被袭击！/g, '没按线索走，感染褪去。')
+    .replace(/这步不太"狼人"（/g, '走位不像线索（')
+    .replace(/，满了会脱离狼人阵营）/g, '，满了脱离狼阵营）')
+    .replace(/还有 (\d+) 人暴露在走廊或楼梯间。/g, '$1人还在走廊。')
+    .replace(/还有 (\d+) 人没躲进房间！/g, '$1人没进房！')
+    .replace(/选一间有人的房间，今晚会有人消失。/g, '选有人的房间。')
+    .replace(/今晚轮到你扩散感染——挑一间有人的房间，你不会杀人。/g, '今晚扩散感染，不杀人。')
+    .replace(/昨晚住了 (\d+) 人——你悄悄下手，把他们都感染了，没有人死。/g, '住了$1人，你全感染了。')
+    .replace(/昨晚住了 (\d+) 人，动静太大，引来了袭击！/g, '住了$1人，动静引来袭击！')
+    .replace(/你盯上了 ([^，]+)，里面有 (\d+) 人。今晚的脚步声会被黑暗吞掉。/g, '你盯上$1，里面$2人。')
+    .replace(/你被感染了！今晚起不会再被袭击，还能亲自挑房间下手——但你只会感染人，不会杀人；走位要符合线索，否则感染会褪去。/g, '你被感染了：夜晚可行动，但要按线索走。')
+    .replace(/侥幸没被杀，但也在那间房里，看样子被感染了。/g, '没死，但被感染了。');
+  return text.length > 44 ? text.slice(0, 43) + '…' : text;
+}
+function addLog(msg, role){
+  const log = document.getElementById('log');
+  const div = document.createElement('div');
+  const currentRole = role || playerRole();
+  div.className = 'log-' + currentRole;
+  div.textContent = '【' + roleEventLabel(currentRole) + '】' + shortLogText(msg);
+  log.appendChild(div);
+  trimLog();
+}
+
+function startGame(){
+  if (!hasReadRules){
+    openRulesModal();
+    addLogSafe('请先看完规则，再搬进公寓。');
+    return;
+  }
+  movedOutGameAvailable = false;
+  clearVictoryChatTimer();
+  const victoryScreen = document.getElementById('victory-chat-screen');
+  const endScreen = document.getElementById('end-screen');
+  if (victoryScreen) victoryScreen.style.display='none';
+  if (endScreen) endScreen.style.display='none';
+  initStartButton();
+  initGame();
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('game-screen').style.display='block';
+  musicEnabled = true;
+  updateMusicForPhase();
+}
+function pauseGameLoop(){
+  if (rafId && typeof cancelAnimationFrame==='function') cancelAnimationFrame(rafId);
+  rafId = null;
+  lastFrameTime = null;
+}
+function resumeGameLoop(){
+  pauseGameLoop();
+  if (typeof requestAnimationFrame==='function') rafId = requestAnimationFrame(loop);
+}
+function moveOutApartment(){
+  if (!people.length || gameOver) return;
+  movedOutGameAvailable = true;
+  pauseGameLoop();
+  pauseMusic();
+  clearNightCinematicTimers();
+  const offerModal = document.getElementById('npc-offer-modal');
+  if (offerModal) offerModal.style.display = 'none';
+  document.getElementById('game-screen').style.display='none';
+  document.getElementById('start-screen').style.display='flex';
+  initStartButton();
+}
+function returnToApartment(){
+  if (!movedOutGameAvailable || !people.length || gameOver) return;
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('game-screen').style.display='block';
+  render();
+  resumeGameLoop();
+}
+
+function openRulesModal(){
+  document.getElementById('rules-modal').style.display='flex';
+}
+function closeRulesModal(){
+  hasReadRules = true;
+  saveRulesRead();
+  initStartButton();
+  document.getElementById('rules-modal').style.display='none';
+}
+function addLogSafe(msg){
+  const log = document.getElementById('log');
+  if (!log) return;
+  const div = document.createElement('div');
+  div.textContent = shortLogText(msg);
+  log.appendChild(div);
+  trimLog();
+}
+
+// ---------- 建筑静态结构（走廊 / 楼梯 / 房间外框），每天重建一次 ----------
+function buildMapChrome(){
+  const map = document.getElementById('map');
+  map.innerHTML = '';
+
+  const stair = document.createElement('div');
+  stair.className = 'stair';
+  Object.assign(stair.style, {
+    left: pct(STAIR_LEFT, BUILDING_W), top: pct(STAIR_TOP, BUILDING_H),
+    width: pct(STAIR_WIDTH, BUILDING_W), height: pct(STAIR_HEIGHT, BUILDING_H)
+  });
+  map.appendChild(stair);
+  const stairLabel = document.createElement('div');
+  stairLabel.className = 'stair-label';
+  stairLabel.textContent = '楼梯';
+  stair.appendChild(stairLabel);
+
+  const stair2 = document.createElement('div');
+  stair2.className = 'stair';
+  Object.assign(stair2.style, {
+    left: pct(STAIR2_LEFT, BUILDING_W), top: pct(STAIR_TOP, BUILDING_H),
+    width: pct(STAIR2_WIDTH, BUILDING_W), height: pct(STAIR_HEIGHT, BUILDING_H)
+  });
+  map.appendChild(stair2);
+  const stair2Label = document.createElement('div');
+  stair2Label.className = 'stair-label';
+  stair2Label.textContent = '楼梯';
+  stair2.appendChild(stair2Label);
+
+  FLOORS.forEach(floor=>{
+    const top = FLOOR_TOPS[floor];
+    const corridor = document.createElement('div');
+    corridor.className = 'corridor';
+    Object.assign(corridor.style, {
+      left: pct(ROOM_AREA_X0-10, BUILDING_W), top: pct(top+ROOM_BAND_H, BUILDING_H),
+      width: pct(STAIR2_LEFT-(ROOM_AREA_X0-10), BUILDING_W), height: pct(CORRIDOR_BAND_H, BUILDING_H)
+    });
+    map.appendChild(corridor);
+
+    const tag = document.createElement('div');
+    tag.className = 'floor-tag';
+    Object.assign(tag.style, { left: pct(STAIR_LEFT, BUILDING_W), top: pct(top-16, BUILDING_H) });
+    tag.textContent = floor+'楼';
+    map.appendChild(tag);
+
+    for (let idx=1; idx<=ROOMS_PER_FLOOR; idx++){
+      const rid = floor*100+idx;
+      const m = ROOM_META[rid];
+      const box = document.createElement('div');
+      box.className = 'room-box';
+      box.dataset.rid = rid;
+      Object.assign(box.style, {
+        left: pct(m.left, BUILDING_W), top: pct(m.floorTop, BUILDING_H),
+        width: pct(ROOM_W, BUILDING_W), height: pct(ROOM_BAND_H, BUILDING_H)
+      });
+      box.onclick = () => {
+        if (phase==='day'){
+          if (placingTrapFor) placeTrap(rid);
+          else clickRoom(rid);
+        }
+        else if (phase==='night-choose' || phase==='night-wolf') chooseNightTarget(rid);
+      };
+      const num = document.createElement('div');
+      num.className = 'room-num';
+      num.textContent = rid;
+      box.appendChild(num);
+      const noise = document.createElement('div');
+      noise.className = 'room-noise';
+      noise.dataset.roomNoise = rid;
+      box.appendChild(noise);
+      map.appendChild(box);
+    }
+  });
+
+  // 人物模型：头顶圆点，圆点的大小/颜色规则和以前完全一样
+  people.forEach((p,i)=>{
+    const person = document.createElement('div');
+    person.className = 'person' + (p.isPlayer ? ' player' : '');
+    person.id = 'dot-'+p.id;
+    person.title = selfNameOf(p);
+    const legL = document.createElement('div'); legL.className = 'leg l'; person.appendChild(legL);
+    const legR = document.createElement('div'); legR.className = 'leg r'; person.appendChild(legR);
+    const armL = document.createElement('div'); armL.className = 'arm l'; person.appendChild(armL);
+    const armR = document.createElement('div'); armR.className = 'arm r'; person.appendChild(armR);
+    const torso3d = document.createElement('div'); torso3d.className = 'torso3d';
+    ['t-front','t-back','t-left','t-right','t-top'].forEach(faceClass=>{
+      const face = document.createElement('div');
+      face.className = 't-face ' + faceClass;
+      torso3d.appendChild(face);
+    });
+    person.appendChild(torso3d);
+    const head = document.createElement('div');
+    head.className = 'head';
+    head.textContent = p.isPlayer ? PLAYER_SELF_NAME : p.name[0];
+    person.appendChild(head);
+    map.appendChild(person);
+  });
+}
+
+function pct(v, total){ return (v/total*100)+'%'; }
+
+// ---------- 路径规划：房间 -> 走廊 -> (楼梯) -> 走廊 -> 房间 ----------
+function buildPath(fromRoomId, toRoomId){
+  const a = ROOM_META[fromRoomId], b = ROOM_META[toRoomId];
+  const path = [];
+  path.push({x:a.doorX, y:a.corridorY});
+  if (a.floor === b.floor){
+    path.push({x:b.doorX, y:b.corridorY});
+  } else {
+    // 两部楼梯都能用，走近的那部
+    const distLeft = Math.abs(a.doorX-STAIR_X) + Math.abs(STAIR_X-b.doorX);
+    const distRight = Math.abs(a.doorX-STAIR2_X) + Math.abs(STAIR2_X-b.doorX);
+    const useX = distRight < distLeft ? STAIR2_X : STAIR_X;
+    path.push({x:useX, y:a.corridorY});
+    path.push({x:useX, y:b.corridorY});
+    path.push({x:b.doorX, y:b.corridorY});
+  }
+  path.push({x:b.interiorX, y:b.interiorYBase});
+  return path;
+}
+
+function slotIndexOf(id){ return people.findIndex(p=>p.id===id); }
+
+function startMove(id, toRoomId){
+  if (roomOf[id] === toRoomId && !inTransit[id]) return;
+  const fromRoomId = roomOf[id];
+  const path = buildPath(fromRoomId, toRoomId);
+  // 用带个人偏移的终点，避免同房间多人重叠
+  const off = slotOffset(slotIndexOf(id));
+  path[path.length-1] = { x: ROOM_META[toRoomId].interiorX+off.dx, y: ROOM_META[toRoomId].interiorYBase+off.dy };
+  pathOf[id] = path;
+  pathIdx[id] = 0;
+  destRoomOf[id] = toRoomId;
+  inTransit[id] = true;
+}
+
+function clickRoom(rid){
+  if (phase!=='day') return;
+  if (!alive.has('player')) return;
+  if (inTransit['player']){
+    if (destRoomOf['player']===rid) addLog('你已经在往 ' + roomLabel(rid) + ' 走了……');
+    else addLog('你正在赶路，还没法改变方向……');
+    return;
+  }
+  if (roomOf['player']===rid){ addLog('你决定留在 ' + roomLabel(rid) + '。'); return; }
+  if (!roomHasSpace(rid)){ addLog('🚪 ' + roomLabel(rid) + ' 已经满员，挤不进去。'); return; }
+
+  const player = peopleById('player');
+  if (player.isInfected && !player.isWerewolf){
+    const compliant = (werewolfTrait==='homebody') ? false : roomMatchesTrait(rid);
+    if (!compliant){
+      playerViolations++;
+      if (playerViolations >= VIOLATION_LIMIT){
+        player.isPack = false;
+        player.isInfected = false;
+        playerViolations = 0;
+        addLog('💊 你走得不像"线索"里说的那样，感染褪去了——你变回普通人，今晚起可能会被袭击！');
+      } else {
+        addLog('⚠️ 这步不太"狼人"（' + playerViolations + '/' + VIOLATION_LIMIT + '，满了会脱离狼人阵营）。');
+      }
+    }
+  }
+
+  startMove('player', rid);
+  addLog('你朝 ' + roomLabel(rid) + ' 走去……');
+}
+
+function toggleWolfDisguise(){
+  const player = peopleById('player');
+  if (!player || !player.isWerewolf || phase!=='day') return;
+  player.isPack = true;
+  player.isInfected = !player.isInfected;
+  if (player.isInfected){
+    addLog('🧟 你把狼人身份藏到被感染者外壳下面。表面像被感染者，夜晚仍能杀人。', 'infected');
+  } else {
+    addLog('🐺 你收起感染伪装，重新露出狼人身份。', 'wolf');
+  }
+  render();
+}
+function cureInfectionTarget(id){
+  const player = peopleById('player');
+  if (phase!=='day' || !alive.has('player') || !genuineInfected(player)) return;
+  const target = peopleById(id);
+  if (!target || !alive.has(id)) return;
+  showCureList = false;
+  const name = selfNameOf(target);
+  if (target.isWerewolf){
+    addLog('🩹 ' + name + ' 只是狼人伪装，不算感染，解除不了。', 'infected');
+    render();
+    return;
+  }
+  if (!target.isInfected){
+    addLog('🩹 ' + name + ' 没有感染，不需要解除。', 'infected');
+    render();
+    return;
+  }
+  target.isPack = false;
+  target.isInfected = false;
+  if (target.isPlayer) playerViolations = 0;
+  addLog('🩹 你帮 ' + name + ' 解除感染，' + name + ' 回到普通状态。', 'infected');
+  checkPopulationMilestones();
+  render();
+}
+function randomizeNpcWolfDisguise(){
+  const wolf = people.find(p=>p.isWerewolf && !p.isPlayer && alive.has(p.id));
+  if (!wolf) return;
+  wolf.isPack = true;
+  wolf.isInfected = Math.random()<0.5;
+}
+function mostCrowdedRoom(){
+  const counts = {};
+  allRoomIds.forEach(rid=>counts[rid]=0);
+  people.forEach(p=>{ if (alive.has(p.id) && !inTransit[p.id]) counts[roomOf[p.id]]++; });
+  const candidateRooms = allRoomIds.filter(roomHasSpace); // 满员的房间挤不进去，不能作为抱团目标
+  const pool = candidateRooms.length>0 ? candidateRooms : allRoomIds;
+  let max=-1, candidates=[];
+  pool.forEach(rid=>{
+    if (counts[rid]>max){ max=counts[rid]; candidates=[rid]; }
+    else if (counts[rid]===max){ candidates.push(rid); }
+  });
+  return candidates[Math.floor(Math.random()*candidates.length)];
+}
+
+function makeNpcDecision(id){
+  const person = peopleById(id);
+  const isHomebody = person.isPack && werewolfTrait==='homebody';
+  const pFollow = 0.05, pHerd = 0.10;
+  const pStay = isHomebody ? 0.85 : 0.55;
+  const r = Math.random();
+  let target;
+  if (r < pFollow){
+    target = roomOf['player'];
+  } else if (r < pFollow+pHerd){
+    target = mostCrowdedRoom();
+  } else if (r < pFollow+pHerd+pStay){
+    target = roomOf[id]; // 留在原地
+  } else {
+    target = randomRoomForPerson(id);
+  }
+  if (target !== roomOf[id] && !roomHasSpace(target)) target = roomOf[id]; // 房间满了，挤不进去就留下
+  if (target !== roomOf[id]) startMove(id, target);
+}
+
+// ---------- 主循环：模拟推进 + 画面渲染 ----------
+function stepSimulation(dt){
+  simClock += dt;
+
+  people.forEach(p=>{
+    if (!alive.has(p.id)) return;
+    const path = pathOf[p.id];
+    if (path && pathIdx[p.id] < path.length){
+      moveAlong(p.id, dt);
+    }
+  });
+
+  if (phase==='day'){
+    people.forEach(p=>{
+      if (p.isPlayer || !alive.has(p.id)) return;
+      if (!inTransit[p.id] && simClock >= npcNextDecision[p.id]){
+        makeNpcDecision(p.id);
+        npcNextDecision[p.id] = simClock + 4 + Math.random()*5;
+      }
+    });
+    checkSuspectEncounters();
+    checkNpcAccusationEncounter();
+    checkTrapEncounters();
+    checkNpcHuntsPlayerEncounter();
+    if (phase==='day' && simClock >= nextChatAt){
+      addOngoingNeighborChat();
+    }
+    if (phase==='day' && !midDaySuspicionChecked && simClock >= DAY_DURATION/2){
+      midDaySuspicionChecked = true;
+      maybeSpawnNpcAccusation();
+      maybeSpawnNpcHuntsPlayer();
+    }
+    if (phase==='day' && simClock >= DAY_DURATION){
+      lockNight();
+    }
+  }
+}
+
+// 按未感染人数划分赛段：>8人=预赛，≤8人=半决赛，≤3人=决赛；只前进，不倒退
+function stageRank(name){ return name==='决赛' ? 2 : (name==='半决赛' ? 1 : 0); }
+function checkPopulationMilestones(){
+  const n = uninfectedSurvivorCount();
+  const newStage = n<=3 ? '决赛' : (n<=8 ? '半决赛' : '预赛');
+  if (stageRank(newStage) > stageRank(currentStage)){
+    currentStage = newStage;
+    addLog('🏆 还剩 ' + n + ' 人未感染，进入【' + currentStage + '】！');
+  }
+}
+
+// 供"意外死亡"路径（指认对峙等）复用的胜利判定：普通邻居全部出局/被感染，玩家就赢了
+function cureInfections(){
+  people.forEach(p=>{
+    if (p.isPack && !p.isWerewolf){ p.isPack = false; p.isInfected = false; }
+  });
+}
+
+function checkWinCondition(){
+  if (!alive.has('player') || phase==='over') return false;
+  const remainingNPC = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+  if (remainingNPC.length===0){
+    phase = 'over';
+    render();
+    endGame(true, people.find(p=>p.isWerewolf));
+    return true;
+  }
+  return false;
+}
+
+// 邻居有一定概率自己也怀疑上了某个人，会来问玩家要不要一起动手（一天最多触发两次检查：开局一次、白天过半再检查一次）
+function maybeSpawnNpcAccusation(){
+  if (!alive.has('player')) return;
+  if (npcAccusation || pendingNpcOffer) return; // 已经有一个邀请/独立对峙在处理中
+  if (suspects.length >= MAX_SUSPECTS) return; // 玩家手上嫌疑人已经满了
+  if (Math.random() > (chatSuspectId ? 0.72 : 0.55)) return; // 闲聊提到的人，会更容易被邻居拿出来怀疑
+  const accusers = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+  if (accusers.length<1) return;
+  const accuser = accusers[Math.floor(Math.random()*accusers.length)];
+  const suspectPool = people.filter(p=>!p.isPlayer && p.id!==accuser.id && alive.has(p.id) && (!p.isInfected || p.isWerewolf) && p.id!==chatClearedId && !suspects.some(s=>s.suspectId===p.id));
+  if (suspectPool.length<1) return;
+  const chatSuspect = suspectPool.find(p=>p.id===chatSuspectId);
+  const suspect = chatSuspect && Math.random()<0.72 ? chatSuspect : suspectPool[Math.floor(Math.random()*suspectPool.length)];
+  pendingNpcOffer = { accuserId: accuser.id, suspectId: suspect.id };
+}
+
+// 玩家是狼人阵营后，邻居有一定概率盯上玩家本人，会主动靠近对质（不需要玩家同意）
+function maybeSpawnNpcHuntsPlayer(){
+  if (!alive.has('player')) return;
+  const player = peopleById('player');
+  if (!player.isPack) return; // 只有你属于狼人阵营、行踪可能露馅时才会被盯上
+  if (npcHuntsPlayer) return;
+  if (Math.random() > (chatSuspectId==='player' ? 0.55 : 0.25)) return;
+  const accusers = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+  if (accusers.length<1) return;
+  const accuser = accusers[Math.floor(Math.random()*accusers.length)];
+  npcHuntsPlayer = { accuserId: accuser.id };
+  addLog('😨 ' + accuser.name + ' 好像盯上了你，眼神不太对劲……');
+}
+
+// 邻居自己发起、玩家没有参与的对峙：两人都走出房间、靠得够近时结算
+function checkNpcAccusationEncounter(){
+  if (!npcAccusation) return;
+  const { accuserId, suspectId } = npcAccusation;
+  if (!alive.has(accuserId) || !alive.has(suspectId)){ npcAccusation = null; return; }
+  if (!inTransit[accuserId] || !inTransit[suspectId]) return;
+  const dx = posX[accuserId]-posX[suspectId], dy = posY[accuserId]-posY[suspectId];
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  if (dist <= 26){
+    resolveNpcAccusation();
+  }
+}
+
+function resolveNpcAccusation(){
+  const { accuserId, suspectId } = npcAccusation;
+  npcAccusation = null;
+  const accuser = peopleById(accuserId), suspect = peopleById(suspectId);
+  if (suspect.isWerewolf){
+    alive.delete(suspectId);
+    addLog('🥊 ' + accuser.name + ' 堵住 ' + suspect.name + ' 动手就揍——真让它猜中了，' + suspect.name + ' 是狼人！');
+    cureInfections();
+    checkPopulationMilestones();
+    phase = 'over';
+    render();
+    endGameByNpcAccusation(suspect, accuser);
+  } else {
+    alive.delete(accuserId);
+    addLog('🥊 ' + accuser.name + ' 拦住 ' + suspect.name + ' 动手就揍，可惜揍错了人——混乱中反被真正的狼人盯上，' + accuser.name + ' 遭了殃。');
+    checkPopulationMilestones();
+    if (!checkWinCondition()) render();
+  }
+}
+
+// 玩家盯上的每个嫌疑人（最多 MAX_SUSPECTS 个）一旦出门、并且和玩家在走廊/楼梯上靠得够近，就当场对质
+function checkSuspectEncounters(){
+  const player = peopleById('player');
+  if (!alive.has('player') || (player && player.isPack)){ suspects = []; placingTrapFor = null; showAccuseList = false; return; }
+  for (let i = suspects.length - 1; i >= 0; i--){
+    const s = suspects[i];
+    const suspect = peopleById(s.suspectId);
+    if (suspect && suspect.isInfected && !suspect.isWerewolf){
+      addLog('🕵️ 你盯上的 ' + suspect.name + ' 已经被感染，不像是狼人，这条线索先放下了。');
+      suspects.splice(i, 1);
+      continue;
+    }
+    if (!alive.has(s.suspectId)){
+      addLog('🕵️ 你盯上的 ' + peopleById(s.suspectId).name + ' 已经因别的事故死了，这条线索断了，你可以再指认新的人。');
+      suspects.splice(i, 1);
+      continue;
+    }
+    if (!inTransit[s.suspectId] || !inTransit['player']) continue;
+    const dx = posX[s.suspectId]-posX['player'], dy = posY[s.suspectId]-posY['player'];
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist <= 26){
+      accusationViaTrap = false;
+      resolveAccusation(i);
+      if (phase==='over') return; // 已经分出胜负，不用再检查剩下的嫌疑人
+    }
+  }
+}
+
+// 在某个房间布下药水陷阱：房间变红，等这个嫌疑人自己走进去
+function placeTrap(rid){
+  if (!placingTrapFor) return;
+  const entry = suspects.find(s=>s.suspectId===placingTrapFor);
+  if (!entry || !alive.has(entry.suspectId)){ placingTrapFor = null; return; }
+  entry.trapRoomId = rid;
+  placingTrapFor = null;
+  addLog('🧪 你在 ' + roomLabel(rid) + ' 布下了药水，房间变红——' + peopleById(entry.suspectId).name + ' 一旦走进去就会中招。');
+  render();
+}
+
+// 药水陷阱：嫌疑人一旦走进（到达并停留在）布药的房间，立刻中招，结算方式与直接对峙相同
+function checkTrapEncounters(){
+  for (let i = suspects.length - 1; i >= 0; i--){
+    const s = suspects[i];
+    if (!s.trapRoomId) continue;
+    if (!alive.has(s.suspectId)) continue; // 已死的会在 checkSuspectEncounters 里清理
+    if (inTransit[s.suspectId]) continue; // 还在赶路，没有真正"走进"房间
+    if (roomOf[s.suspectId] !== s.trapRoomId) continue;
+    addLog('🧪 ' + peopleById(s.suspectId).name + ' 走进了下药的房间，中招了！');
+    s.trapRoomId = null;
+    accusationViaTrap = true;
+    resolveAccusation(i);
+    if (phase==='over') return;
+  }
+}
+
+// 玩家被感染后，邻居靠近盯上的玩家：真被感染就当场败露判负，否则邻居扑空、反被真狼人得手
+function checkNpcHuntsPlayerEncounter(){
+  if (!npcHuntsPlayer) return;
+  const { accuserId } = npcHuntsPlayer;
+  if (!alive.has(accuserId) || !alive.has('player')){ npcHuntsPlayer = null; return; }
+  if (!inTransit[accuserId] || !inTransit['player']) return;
+  const dx = posX[accuserId]-posX['player'], dy = posY[accuserId]-posY['player'];
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  if (dist <= 26){
+    resolveNpcHuntsPlayer();
+  }
+}
+
+function resolveNpcHuntsPlayer(){
+  const { accuserId } = npcHuntsPlayer;
+  npcHuntsPlayer = null;
+  const accuser = peopleById(accuserId);
+  const player = peopleById('player');
+  if (player.isPack){
+    addLog('💥 ' + accuser.name + ' 当场认出你是狼人——你的身份败露了！');
+    phase = 'over';
+    render();
+    endGameExposed(accuser.name);
+  } else {
+    // 你其实不是狼人，邻居扑了个空——混乱中反被真狼人得手
+    alive.delete(accuserId);
+    addLog('🥊 ' + accuser.name + ' 冲上来想抓你，结果扑了个空——混乱中反被真正的狼人盯上，' + accuser.name + ' 遭了殃。');
+    checkPopulationMilestones();
+    if (!checkWinCondition()) render();
+  }
+}
+
+function moveAlong(id, dt){
+  const path = pathOf[id];
+  const startX = posX[id];
+  let remaining = SPEED*dt;
+  while (remaining > 0 && pathIdx[id] < path.length){
+    const target = path[pathIdx[id]];
+    const dx = target.x - posX[id], dy = target.y - posY[id];
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist <= remaining){
+      posX[id] = target.x; posY[id] = target.y;
+      remaining -= dist;
+      pathIdx[id]++;
+    } else {
+      posX[id] += dx/dist*remaining;
+      posY[id] += dy/dist*remaining;
+      remaining = 0;
+    }
+  }
+  // 记录这一步是往左走还是往右走，好让人物确认行进方向（纯移动时保持原来的朝向）
+  const movedX = posX[id] - startX;
+  if (Math.abs(movedX) > 0.5) facingLeft[id] = movedX < 0;
+  if (pathIdx[id] >= path.length){
+    roomOf[id] = destRoomOf[id];
+    inTransit[id] = false;
+    pathOf[id] = null;
+  }
+}
+
+function loop(now){
+  if (lastFrameTime===null) lastFrameTime = now;
+  let dt = (now - lastFrameTime)/1000;
+  lastFrameTime = now;
+  if (dt > 0.25) dt = 0.25; // 避免切后台后一次跳太远
+  if (!gameOver && phase==='day'){
+    stepSimulation(dt);
+  }
+  renderFrame();
+  rafId = requestAnimationFrame(loop);
+}
+
+function renderFrame(){
+  document.querySelectorAll('.room-box').forEach(box=>{
+    const rid = parseInt(box.dataset.rid,10);
+    box.classList.toggle('clickable', phase==='day' || phase==='night-choose' || phase==='night-wolf');
+    box.classList.toggle('attacked', lastAttackedRoom===rid && phase!=='day');
+    box.classList.toggle('night-shake', nightCinematicShakeRoom===rid);
+  });
+
+  people.forEach(p=>{
+    const dot = document.getElementById('dot-'+p.id);
+    if (!dot) return;
+    if (!alive.has(p.id)){ dot.classList.add('dead'); return; }
+    const nightMode = phase!=='day' && phase!=='over';
+    dot.classList.toggle('infected', !!p.isInfected);
+    dot.classList.toggle('night-shadow', nightMode);
+    dot.classList.toggle('wolf-revealed', false);
+    dot.classList.toggle('shiver', nightMode && !!nightCinematicShakeRoom && !inTransit[p.id]);
+    dot.classList.toggle('facing-left', !!facingLeft[p.id]);
+    const head = dot.children && Array.from(dot.children).find(child=>child.classList && child.classList.contains('head'));
+    if (head) head.textContent = nightMode ? '' : (p.isPlayer ? PLAYER_SELF_NAME : p.name[0]);
+    dot.style.left = pct(posX[p.id], BUILDING_W);
+    dot.style.top = pct(posY[p.id], BUILDING_H);
+  });
+  updateNightBlackout();
+
+  if (phase==='day'){
+    allRoomIds.forEach(rid=>{
+      const el = document.querySelector('[data-room-noise="'+rid+'"]');
+      if (!el) return;
+      const n = occupantsOf(rid).length;
+      el.textContent = n>0 ? '🔊'+n : '';
+    });
+    document.querySelectorAll('.room-box').forEach(box=>{
+      const rid = parseInt(box.dataset.rid,10);
+      box.classList.toggle('you', alive.has('player') && !inTransit['player'] && roomOf['player']===rid);
+      box.classList.toggle('trapped', suspects.some(s=>s.trapRoomId===rid));
+    });
+    const remain = Math.max(0, DAY_DURATION - simClock);
+    const m = Math.floor(remain/60), s = Math.floor(remain%60);
+    document.getElementById('timerLabel').textContent = m+':'+(s<10?'0':'')+s;
+  }
+
+  document.getElementById('aliveNum').textContent = alive.size;
+  document.getElementById('stageLabel').textContent = currentStage;
+  document.getElementById('dayNum').textContent = day + (inOvertime ? '（加时）' : '');
+  document.getElementById('phaseLabel').textContent =
+    phase==='day' ? '白天' : (phase==='night-locked' ? '夜晚' : (phase==='night-choose' ? '夜晚·感染' : (phase==='night-wolf' ? '夜晚·狩猎' : (phase==='resolved' ? '清晨' : '——'))));
+  const playerNow = peopleById('player');
+  document.getElementById('identityLabel').textContent =
+    visibleRoleOf(playerNow)==='wolf' ? '狼人' : (visibleRoleOf(playerNow)==='infected' ? '被感染者' : '普通住户');
+}
+
+// 第1天邻居间还没传开消息，线索要到第2天才会显示给玩家
+function updateWolfClueDisplay(){
+  const el = document.getElementById('wolfClue');
+  el.textContent = day >= 2 ? currentClueText : '🔍 线索：邻居间还没传开消息，第2天开始才会有线索……';
+}
+
+function getCurrentHint(){
+  const player = peopleById('player');
+  const clue = day >= 2 ? currentClueText : '第2天开始出现狼人行为线索。';
+  if (phase==='day'){
+    if (placingTrapFor){
+      const suspect = peopleById(placingTrapFor);
+      return { title:'布置药水', text:'点击地图上一间房，为 ' + suspect.name + ' 设置陷阱。布错可以撤回。' };
+    }
+    if (showAccuseList) return { title:'选择嫌疑人', text:'从名单里选择你怀疑的邻居。自己猜错会失败，谨慎一点。' };
+    if (player && player.isWerewolf && player.isInfected) return { title:'感染伪装', text:'你表面是被感染者，但真实身份仍是狼人；夜晚照样可以杀人。行动线索：' + clue };
+    if (player && player.isWerewolf) return { title:'狼人白天', text:'点击房间移动，混在人群里但别太反常；夜晚你会亲自选择目标。行动线索：' + clue };
+    if (player && player.isInfected) return { title:'感染者白天', text:'点击房间移动，尽量符合狼人线索；连续违规3次会痊愈并脱离阵营。线索：' + clue };
+    return { title:'普通住户白天', text:'点击房间移动，天黑前找安全位置。房间人数越多夜里越危险。线索：' + clue };
+  }
+  if (phase==='night-choose') return { title:'被感染者出击', text:'点一间有人的房间进行感染；随后真正的狼人仍会袭击。' };
+  if (phase==='night-wolf') return { title:'狼人狩猎', text:'点一间有人的房间下手。人越多的房间越适合掩盖你的选择。' };
+  if (phase==='night-locked') return { title:'普通住户夜晚', text:'天黑后会自动结算：圆点变成黑影，狼人靠近目标，其他人躲在房间里发抖。' };
+  if (phase==='resolved') return { title:'清晨', text:'看完出事房间和事件记录后，点击“天亮了，继续”进入第二天。' };
+  return { title:'游戏结束', text:'可以点击重新开始。你已经看过规则的话，不会再强制阅读。' };
+}
+function updateHintPanel(){
+  const title = document.getElementById('hintTitle');
+  const text = document.getElementById('hintText');
+  if (!title || !text || !people.length) return;
+  const hint = getCurrentHint();
+  title.textContent = hint.title;
+  text.textContent = hint.text;
+}
+function updateRoleZones(){
+  const role = playerRole();
+  [['ordinary','zone-ordinary'], ['infected','zone-infected'], ['wolf','zone-wolf']].forEach(([name,id])=>{
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', role===name);
+  });
+  const logTitle = document.getElementById('logTitle');
+  if (logTitle){
+    logTitle.textContent = role==='wolf' ? '🐺 狼人事件' : (role==='infected' ? '🧟 感染事件' : '📜 住户事件');
+  }
+}
+
+function render(){
+  renderFrame();
+  renderControls();
+  updateNpcOfferModal();
+  updateWolfClueDisplay();
+  updateHintPanel();
+  updateRoleZones();
+  renderChatPanel();
+  updateMusicForPhase();
+  document.getElementById('map-wrap').classList.toggle('night', phase!=='day');
+}
+
+// 邻居"悄悄告诉你"它怀疑谁的邀请，用弹窗呈现，而不是挤在控制栏里
+function updateNpcOfferModal(){
+  const modal = document.getElementById('npc-offer-modal');
+  const player = peopleById('player');
+  const active = phase==='day' && player && alive.has('player') &&
+    pendingNpcOffer && alive.has(pendingNpcOffer.accuserId) && alive.has(pendingNpcOffer.suspectId);
+  if (!active){ modal.style.display = 'none'; return; }
+  const accuser = peopleById(pendingNpcOffer.accuserId), suspect = peopleById(pendingNpcOffer.suspectId);
+  document.getElementById('npcOfferText').textContent =
+    accuser.name + ' 悄悄跟你说，它怀疑 ' + suspect.name + ' 是狼人，要不要一起动手？';
+  document.getElementById('npcOfferJoinBtn').style.display = suspects.length < MAX_SUSPECTS ? '' : 'none';
+  modal.style.display = 'flex';
+}
+
+function respondNpcOffer(join){
+  if (!pendingNpcOffer) return;
+  const accuser = peopleById(pendingNpcOffer.accuserId), suspect = peopleById(pendingNpcOffer.suspectId);
+  if (join && suspects.length < MAX_SUSPECTS){
+    suspects.push({ suspectId: pendingNpcOffer.suspectId, viaNpcId: pendingNpcOffer.accuserId, trapRoomId: null });
+    rememberSuspicion(pendingNpcOffer.suspectId);
+    addLog('你和 ' + accuser.name + ' 决定一起对付 ' + suspect.name + '，擦肩而过时就会动手。');
+  } else {
+    npcAccusation = { accuserId: pendingNpcOffer.accuserId, suspectId: pendingNpcOffer.suspectId };
+    addLog('你选择不参与，' + accuser.name + ' 打算自己去会会 ' + suspect.name + '。');
+  }
+  pendingNpcOffer = null;
+  render();
+}
+
+function renderControls(){
+  const controls = document.getElementById('controls');
+  controls.innerHTML = '';
+  suspects = suspects.filter(s=>{
+    const suspect = peopleById(s.suspectId);
+    return suspect && alive.has(s.suspectId) && (!suspect.isInfected || suspect.isWerewolf);
+  });
+
+  const player = peopleById('player');
+  if (phase==='day' && player && alive.has('player') && player.isWerewolf){
+    const disguiseBtn = document.createElement('button');
+    disguiseBtn.textContent = player.isInfected ? '🐺 切回狼人身份' : '🧟 伪装成被感染者';
+    disguiseBtn.onclick = toggleWolfDisguise;
+    controls.appendChild(disguiseBtn);
+  }
+  if (phase==='day' && player && alive.has('player') && genuineInfected(player)){
+    const cureBtn = document.createElement('button');
+    cureBtn.textContent = showCureList ? '取消解除感染' : '🩹 帮人解除感染';
+    cureBtn.onclick = () => { showCureList = !showCureList; render(); };
+    controls.appendChild(cureBtn);
+    if (showCureList){
+      const hint = document.createElement('div');
+      hint.style.cssText = 'width:100%; text-align:center; color:var(--muted); font-size:.8em; margin-bottom:4px;';
+      hint.textContent = '只显示真正被感染的人；狼人伪装不算感染。';
+      controls.appendChild(hint);
+      const infectedTargets = people.filter(p=>alive.has(p.id) && genuineInfected(p));
+      if (infectedTargets.length===0){
+        const empty = document.createElement('div');
+        empty.style.cssText = 'width:100%; text-align:center; color:var(--muted); font-size:.8em;';
+        empty.textContent = '现在没有真正被感染的人。';
+        controls.appendChild(empty);
+      }
+      infectedTargets.forEach(p=>{
+        const b = document.createElement('button');
+        b.textContent = selfNameOf(p);
+        b.onclick = () => cureInfectionTarget(p.id);
+        controls.appendChild(b);
+      });
+    }
+  } else {
+    showCureList = false;
+  }
+  if (player && player.isPack){ suspects = []; placingTrapFor = null; showAccuseList = false; }
+  if (phase==='day' && player && alive.has('player') && !player.isPack){
+    // 当前盯上的每个嫌疑人（最多 MAX_SUSPECTS 个），各自单独下药/放弃
+    suspects.filter(s=>alive.has(s.suspectId)).forEach(s=>{
+      const suspect = peopleById(s.suspectId);
+      const row = document.createElement('div');
+      row.style.cssText = 'width:100%; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;';
+      const info = document.createElement('span');
+      info.style.cssText = 'color:var(--gold); font-size:.85em;';
+      if (placingTrapFor === s.suspectId){
+        info.textContent = '🧪 点击地图上的房间布下药水——' + suspect.name + ' 一旦走进去就会中招。';
+      } else if (s.trapRoomId){
+        info.textContent = '🧪 已在 ' + roomLabel(s.trapRoomId) + ' 对 ' + suspect.name + ' 下药，等它自己送上门（擦肩而过也照样会动手）。';
+      } else {
+        info.textContent = '🕵️ 正盯着 ' + suspect.name + '，擦肩而过就会动手……';
+      }
+      row.appendChild(info);
+
+      if (placingTrapFor === s.suspectId){
+        const cancelTrapBtn = document.createElement('button');
+        cancelTrapBtn.textContent = '取消布药';
+        cancelTrapBtn.onclick = () => { placingTrapFor = null; render(); };
+        row.appendChild(cancelTrapBtn);
+      } else {
+        const potionBtn = document.createElement('button');
+        potionBtn.textContent = s.trapRoomId ? '🧹 撤回药水' : '🧪 用药水设陷阱';
+        potionBtn.onclick = () => {
+          if (s.trapRoomId){ s.trapRoomId = null; addLog('你撤回了对 ' + suspect.name + ' 下的药水。'); }
+          else { placingTrapFor = s.suspectId; }
+          render();
+        };
+        row.appendChild(potionBtn);
+      }
+
+      const dropBtn = document.createElement('button');
+      dropBtn.textContent = '↩️ 放弃这个目标';
+      dropBtn.onclick = () => {
+        const idx = suspects.findIndex(x=>x.suspectId===s.suspectId);
+        if (idx>=0) suspects.splice(idx,1);
+        if (placingTrapFor === s.suspectId) placingTrapFor = null;
+        render();
+      };
+      row.appendChild(dropBtn);
+
+      controls.appendChild(row);
+    });
+
+    if (showAccuseList){
+      const hint = document.createElement('div');
+      hint.style.cssText = 'width:100%; text-align:center; color:var(--muted); font-size:.8em; margin-bottom:4px;';
+      hint.textContent = '你觉得谁是狼人？';
+      controls.appendChild(hint);
+      const alreadySuspected = new Set(suspects.map(s=>s.suspectId));
+      people.filter(p=>!p.isPlayer && alive.has(p.id) && (!p.isInfected || p.isWerewolf) && !alreadySuspected.has(p.id)).forEach(p=>{
+        const b = document.createElement('button');
+        b.textContent = p.name;
+        b.onclick = () => {
+          suspects.push({ suspectId: p.id, viaNpcId: null, trapRoomId: null });
+          rememberSuspicion(p.id);
+          showAccuseList = false;
+          addLog('🕵️ 你盯上了 ' + p.name + '，在走廊上擦肩而过就会动手……');
+          render();
+        };
+        controls.appendChild(b);
+      });
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '取消';
+      cancelBtn.onclick = () => { showAccuseList = false; render(); };
+      controls.appendChild(cancelBtn);
+    } else if (suspects.length < MAX_SUSPECTS) {
+      const btn = document.createElement('button');
+      btn.textContent = suspects.length>0 ? ('🔍 再指认一个（' + suspects.length + '/' + MAX_SUSPECTS + '）') : '🔍 我知道狼人是谁';
+      btn.onclick = () => { showAccuseList = true; render(); };
+      controls.appendChild(btn);
+    }
+  }
+
+  if (phase==='night-locked'){
+    const hint = document.createElement('div');
+    hint.style.cssText = 'color:var(--muted); font-size:.85em; align-self:center;';
+    hint.textContent = '🌘 夜色压下来，狼人正在行动……';
+    controls.appendChild(hint);
+  } else if (phase==='night-choose'){
+    const hint = document.createElement('div');
+    hint.style.cssText = 'color:var(--gold); font-size:.85em; align-self:center;';
+    hint.textContent = '🧟 被感染者专区：点地图上一间有人的房间，把他们感染（不会杀人）——';
+    controls.appendChild(hint);
+    const btn = document.createElement('button');
+    btn.textContent = '🎲 不挑了，随机感染';
+    btn.onclick = () => resolveNight();
+    controls.appendChild(btn);
+  } else if (phase==='night-wolf'){
+    const hint = document.createElement('div');
+    hint.style.cssText = 'color:var(--gold); font-size:.85em; align-self:center;';
+    hint.textContent = '🐺 狼人专区：只能点自己周围有人的房间下手——';
+    controls.appendChild(hint);
+    const btn = document.createElement('button');
+    btn.textContent = '🎲 不挑了，随机袭击';
+    btn.onclick = () => resolveNight();
+    controls.appendChild(btn);
+  } else if (phase==='resolved'){
+    const btn = document.createElement('button');
+    btn.textContent = '☀️ 天亮了，继续';
+    btn.onclick = nextDay;
+    controls.appendChild(btn);
+  }
+}
+
+function lockNight(){
+  if (phase!=='day') return;
+  // 还卡在走廊/楼梯上的人来不及躲进房间——记下他们此刻所在的楼层，位置就地冻结
+  let strandedCount = 0;
+  people.forEach(p=>{
+    if (!alive.has(p.id)) return;
+    if (inTransit[p.id]){
+      strandedFloor[p.id] = personFloor(p.id);
+      strandedCount++;
+    }
+  });
+  const player = peopleById('player');
+  const playerInfectedHunts = player.isInfected && !player.isWerewolf && alive.has('player');
+  const playerWolfHunts = player.isWerewolf && alive.has('player');
+  phase = playerWolfHunts ? 'night-wolf' : (playerInfectedHunts ? 'night-choose' : 'night-locked');
+  if (playerWolfHunts){
+    const nightRole = player.isInfected ? 'infected' : 'wolf';
+    addLog('🌃 天黑了。' + (strandedCount>0 ? ('还有 '+strandedCount+' 人暴露在走廊或楼梯间。') : '公寓安静下来。'), nightRole);
+    addLog(player.isInfected ? '🧟 伪装还在，但你仍是真狼人。选一间有人的房间，今晚会有人消失。' : '🐺 轮到你亲自挑目标。选一间有人的房间，今晚会有人消失。', nightRole);
+  } else if (playerInfectedHunts){
+    addLog('🌃 天黑了。' + (strandedCount>0 ? ('还有 '+strandedCount+' 人暴露在走廊或楼梯间。') : '公寓安静下来。'), 'infected');
+    addLog('🧟 今晚轮到你扩散感染——挑一间有人的房间，你不会杀人。', 'infected');
+  } else {
+    addLog('🌃 天黑了。' + (strandedCount>0 ? ('还有 '+strandedCount+' 人没躲进房间！') : ''), 'ordinary');
+  }
+  render();
+  if (!playerWolfHunts && !playerInfectedHunts && timedNightCinematicAvailable()) beginNightCinematic();
+}
+
+function resolveNight(forcedTargetRoom, fromCinematic=false){
+  if (phase!=='night-locked' && phase!=='night-choose' && phase!=='night-wolf') return;
+  if (!fromCinematic && timedNightCinematicAvailable()){
+    const preview = previewNightTarget(forcedTargetRoom);
+    if (!preview.invalid && !preview.empty){ beginNightCinematic(forcedTargetRoom); return; }
+  }
+  const infectedHuntNight = (phase === 'night-choose'); // 被感染者主导的这一晚，只感染不杀人
+  const playerWolfHuntNight = (phase === 'night-wolf'); // 你是原始狼人时，亲自选择袭击房间
+  const werewolf = people.find(p=>p.isWerewolf);
+  if (!infectedHuntNight && !playerWolfHuntNight && (!werewolf || !alive.has(werewolf.id))){
+    addLog('🌙 最初的狼人已经不在了，公寓终于安静下来。');
+    cureInfections();
+    phase = 'over';
+    render();
+    endGameByNpcAccusation(werewolf || {name:'狼人'}, {name:'邻居'});
+    return;
+  }
+  const occupantsMap = {};
+  allRoomIds.forEach(rid=>{ occupantsMap[rid]=[]; });
+  people.forEach(p=>{
+    if (p.isPack) return; // 狼人阵营当晚都出去行动，不计入任何房间
+    if (!alive.has(p.id)) return;
+    if (inTransit[p.id]) return; // 走廊/楼梯上的人不计入任何房间的人数
+    occupantsMap[roomOf[p.id]].push(p.id);
+  });
+
+  const wolfAttacker = infectedHuntNight ? null : (playerWolfHuntNight ? peopleById('player') : werewolf);
+  const allowedAttackRooms = wolfAttacker ? wolfAttackRooms(wolfAttacker) : null;
+  const weightedRooms = allRoomIds.filter(rid=>
+    occupantsMap[rid].length>0 && (!allowedAttackRooms || allowedAttackRooms.includes(rid))
+  );
+
+  if (forcedTargetRoom && allowedAttackRooms && !allowedAttackRooms.includes(forcedTargetRoom)){
+    addLog('🐺 狼人只能袭击自己周围的房间。', playerWolfHuntNight ? playerRole() : 'ordinary');
+    render();
+    return;
+  }
+
+  if (weightedRooms.length===0){
+    addLog(allowedAttackRooms ? '🌙 狼人周围没有可袭击的房间，今晚平安。' : '🌙 所有人都还在走廊上，今晚没人被盯上，平安一夜。');
+    render();
+    finishResolvedNight();
+    return;
+  }
+
+  let targetRoom;
+  if (forcedTargetRoom && occupantsMap[forcedTargetRoom] && occupantsMap[forcedTargetRoom].length>0){
+    targetRoom = forcedTargetRoom;
+  } else if (forcedTargetRoom){
+    addLog('🚪 ' + roomLabel(forcedTargetRoom) + ' 里没人，再选一间。');
+    render();
+    return; // 仍停留在 night-choose/night-wolf，等玩家重新点
+  } else {
+    // 声音按人数的平方放大：房间人越多，越容易被盯上（独自躲藏永远是最安全的选择）
+    const noiseOf = rid => occupantsMap[rid].length * occupantsMap[rid].length;
+    const totalWeight = weightedRooms.reduce((s,rid)=>s+noiseOf(rid),0);
+    let r = Math.random()*totalWeight;
+    targetRoom = weightedRooms[weightedRooms.length-1];
+    for (const rid of weightedRooms){
+      r -= noiseOf(rid);
+      if (r <= 0){ targetRoom = rid; break; }
+    }
+  }
+
+  const roomVictims = occupantsMap[targetRoom];
+  const targetFloor = ROOM_META[targetRoom].floor;
+
+  let primaryVictimId = null;
+  let strandedVictimIds = [];
+  let infectedIds;
+
+  if (infectedHuntNight){
+    // 感染者出手：只会把房间里的人都感染，不会杀人
+    infectedIds = roomVictims.slice();
+  } else {
+    // 只有最初的狼人出手才会杀人：房间里随机死一人，其余人被感染
+    primaryVictimId = roomVictims[Math.floor(Math.random()*roomVictims.length)];
+    // 天黑时恰好卡在同一层走廊/楼梯上的人，会和盯上的房间一起遭殃
+    strandedVictimIds = people
+      .filter(p => !p.isPack && alive.has(p.id) && inTransit[p.id] && strandedFloor[p.id]===targetFloor)
+      .map(p=>p.id);
+    infectedIds = roomVictims.filter(id => id!==primaryVictimId);
+  }
+
+  const allVictimIds = primaryVictimId ? [primaryVictimId, ...strandedVictimIds] : [];
+  const playerDied = allVictimIds.includes('player');
+
+  lastAttackedRoom = targetRoom;
+  if (infectedHuntNight){
+    addLog('🔊 ' + roomLabel(targetRoom) + ' 昨晚住了 ' + roomVictims.length + ' 人——你悄悄下手，把他们都感染了，没有人死。', 'infected');
+  } else if (playerWolfHuntNight){
+    addLog('🐺 你盯上了 ' + roomLabel(targetRoom) + '，里面有 ' + roomVictims.length + ' 人。今晚的脚步声会被黑暗吞掉。', 'wolf');
+  } else {
+    addLog('🔊 ' + roomLabel(targetRoom) + ' 昨晚住了 ' + roomVictims.length + ' 人，动静太大，引来了袭击！');
+    if (strandedVictimIds.length>0){
+      addLog('🚪 还有 ' + strandedVictimIds.length + ' 人卡在 ' + targetFloor + '楼的走廊或楼梯间，躲不掉了！');
+    }
+  }
+
+  document.querySelectorAll('.room-box').forEach(box=>{
+    box.classList.toggle('attacked', parseInt(box.dataset.rid,10)===targetRoom);
+  });
+
+  const killedNames = [];
+  allVictimIds.forEach(vid=>{
+    if (!alive.has(vid)) return;
+    const v = peopleById(vid);
+    alive.delete(vid);
+    killedNames.push(selfNameOf(v));
+    if (!v.isPlayer){
+      addLog('💀 ' + v.name + (inTransit[vid]
+        ? ' 还没躲进房间就消失了……'
+        : (' 在 ' + roomLabel(targetRoom) + ' 惨遭毒手，消失了……')));
+    }
+  });
+  if (!infectedHuntNight && killedNames.length>0 && !playerDied){
+    morningKillChatPending = { victimName:killedNames[0], roomId:targetRoom };
+  }
+
+  infectedIds.forEach(iid=>{
+    const v = peopleById(iid);
+    v.isPack = true;
+    v.isInfected = true;
+    if (v.isPlayer){
+      playerViolations = 0;
+      addLog('🧟 你被感染了！今晚起不会再被袭击，还能亲自挑房间下手——但你只会感染人，不会杀人；走位要符合线索，否则感染会褪去。');
+    } else {
+      addLog('🧟 ' + v.name + ' 侥幸没被杀，但也在那间房里，看样子被感染了。');
+    }
+  });
+
+  checkPopulationMilestones();
+  render();
+
+  if (infectedHuntNight){
+    const remainingAfterInfection = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+    if (remainingAfterInfection.length===0){
+      phase = 'over';
+      render();
+      endGame(true, werewolf);
+      return;
+    }
+    phase = 'night-locked';
+    addLog('🐺 最初的狼人也在夜里行动，真正的袭击还没结束……');
+    resolveNight();
+    return;
+  }
+
+  if (playerDied){
+    phase = 'over';
+    render();
+    endGame(false, werewolf);
+    return;
+  }
+
+  const remainingNPC = people.filter(p=>!p.isPlayer && !p.isPack && alive.has(p.id));
+  if (remainingNPC.length===0){
+    phase = 'over';
+    render();
+    endGame(true, werewolf);
+    return;
+  }
+  finishResolvedNight();
+}
+
+function chooseNightTarget(rid){
+  if (phase!=='night-choose' && phase!=='night-wolf') return;
+  resolveNight(rid);
+}
+
+function nextDay(){
+  if (phase!=='resolved') return;
+  const forgotNpcSuspicion = !!((chatSuspectId && chatSuspectId!=='player') || pendingNpcOffer || npcAccusation);
+  const forgotPlayerSuspicion = !!(chatSuspectId==='player' || npcHuntsPlayer);
+  pendingNpcOffer = null;
+  npcAccusation = null;
+  npcHuntsPlayer = null;
+  const offerModal = document.getElementById('npc-offer-modal');
+  if (offerModal) offerModal.style.display = 'none';
+  day += 1;
+  phase = 'day';
+  simClock = 0;
+  lastAttackedRoom = null;
+  document.querySelectorAll('.room-box').forEach(box=>box.classList.remove('attacked'));
+  showAccuseList = false;
+  midDaySuspicionChecked = false;
+  playerChatUsedToday = false;
+  playerChatActionToday = null;
+  chatChoicesOpen = false;
+  showCureList = false;
+  generateNeighborChat();
+  addMorningKillChat();
+  scheduleNextNeighborChat();
+  scheduleNpcDecisions();
+  const player = peopleById('player');
+  randomizeNpcWolfDisguise();
+  if (player.isWerewolf){
+    addLog(player.isInfected ? ('☀️ 第 ' + day + ' 天，公寓恢复平静。你仍披着被感染者身份，夜晚照样可以杀人。') : ('☀️ 第 ' + day + ' 天，公寓恢复平静。白天继续伪装，夜晚再选择目标。'), player.isInfected ? 'infected' : 'wolf');
+  } else if (player.isInfected){
+    addLog('☀️ 第 ' + day + ' 天，公寓恢复平静。你已经是狼人一伙，白天要继续按线索伪装。', 'infected');
+  } else {
+    addLog('☀️ 第 ' + day + ' 天，公寓恢复平静，你有30秒时间寻找安全位置……', 'ordinary');
+  }
+  if (forgotNpcSuspicion) addLog('☀️ 天亮后，昨晚的怀疑暂时散了。邻居不会继续追着昨天的怀疑对象，但新的走位还是可能引起注意。', 'system');
+  if (forgotPlayerSuspicion) addLog('☀️ 天亮了，邻居暂时放下了昨天对你的怀疑。今天重新观察走位，别再露出破绽。', playerRole());
+  if (day > MAX_DAY && !inOvertime){
+    inOvertime = true;
+    addLog('⏰ 已经 ' + MAX_DAY + ' 天了还没分出胜负——公寓正式进入加时赛，继续到水落石出为止！');
+  }
+  maybeSpawnNpcAccusation();
+  maybeSpawnNpcHuntsPlayer();
+  render();
+}
+
+function showVictoryChat(werewolf){
+  markGameOver();
+  clearVictoryChatTimer();
+  if (rafId) cancelAnimationFrame(rafId);
+  pendingVictoryWerewolfId = werewolf && werewolf.id ? werewolf.id : null;
+  victoryChatLines = [];
+  victoryChatDeck = buildVictoryChatDeck(werewolf);
+  document.getElementById('game-screen').style.display='none';
+  document.getElementById('end-screen').style.display='none';
+  const screen = document.getElementById('victory-chat-screen');
+  if (!screen){ endGame(true, werewolf, true); return; }
+  screen.style.display='block';
+  const reveal = document.getElementById('victoryChatReveal');
+  if (reveal) reveal.textContent = victoryRevealText(werewolf);
+  const desc = document.getElementById('victoryChatDesc');
+  if (desc) desc.textContent = '公寓安静下来，但他们还在一句句反应过来。';
+  renderVictoryChat([]);
+  renderVictoryChatActions();
+  for (let i=0; i<2; i++) nextVictoryChatLine();
+  if (typeof setInterval==='function') victoryChatTimer = setInterval(nextVictoryChatLine, 4000);
+}
+function finishVictory(){
+  clearVictoryChatTimer();
+  const werewolf = peopleById(pendingVictoryWerewolfId) || people.find(p=>p.isWerewolf);
+  const screen = document.getElementById('victory-chat-screen');
+  if (screen) screen.style.display='none';
+  endGame(true, werewolf, true);
+}
+function endGame(won, werewolf, skipVictoryChat=false){
+  if (won && !skipVictoryChat){ showVictoryChat(werewolf); return; }
+  markGameOver();
+  clearVictoryChatTimer();
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('game-screen').style.display='none';
+  const victoryScreen = document.getElementById('victory-chat-screen');
+  if (victoryScreen) victoryScreen.style.display='none';
+  const endScreen = document.getElementById('end-screen');
+  endScreen.style.display='block';
+  const title = document.getElementById('endTitle');
+  const desc = document.getElementById('endDesc');
+  renderEndChat([]);
+  const player = peopleById('player');
+  const infectedNPCs = people.filter(p=>p.isPack && !p.isWerewolf && !p.isPlayer);
+  const infectedNote = infectedNPCs.length>0
+    ? ('中途感染了 ' + infectedNPCs.map(p=>p.name).join('、') + '，一起加入了狼人阵营。')
+    : '';
+  const playerPackNote = player.isWerewolf ? (player.isInfected ? '你从一开始就是狼人，还把自己伪装成了被感染者。' : '你从一开始就是狼人。') : (player.isPack ? '你自己后来也被感染，成了狼人一伙。' : '');
+  if (won){
+    title.textContent = '🎉 你活了下来！';
+    title.className = 'win';
+    desc.textContent = '邻居一个个消失，最终只剩下你和狼人一伙。最初的狼人是 ' + werewolf.name + '（' + roomLabel(roomOf[werewolf.id]) + '）。' + infectedNote + playerPackNote + '你活到了最后一刻，生存就是胜利。';
+    renderEndChat(buildWolfWinEndChat(werewolf));
+  } else {
+    title.textContent = '💀 你被袭击了……';
+    title.className = 'lose';
+    desc.textContent = '第 ' + day + ' 天夜里，狼人闯进了你藏身的房间。最初的狼人是 ' + werewolf.name + '（' + roomLabel(roomOf[werewolf.id]) + '）。' + infectedNote + '狼人公寓，从来没有真正安全的房间。';
+  }
+}
+
+// 玩家被邻居当场揭穿身份时的结局画面
+function endGameExposed(accuserName){
+  markGameOver();
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('game-screen').style.display='none';
+  const endScreen = document.getElementById('end-screen');
+  endScreen.style.display='block';
+  document.getElementById('endTitle').textContent = '🙀 你的身份败露了……';
+  document.getElementById('endTitle').className = 'lose';
+  document.getElementById('endDesc').textContent = accuserName + ' 当场认出你也是狼人一伙，邻居们一拥而上。伪装到此为止，你输了。';
+}
+
+function endGameByNpcAccusation(suspect, accuser){
+  markGameOver();
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('game-screen').style.display='none';
+  const endScreen = document.getElementById('end-screen');
+  endScreen.style.display='block';
+  const title = document.getElementById('endTitle');
+  const desc = document.getElementById('endDesc');
+  title.textContent = '🎯 真狼被抓住了！';
+  title.className = 'win';
+  const roomText = roomOf[suspect.id] ? '（' + roomLabel(roomOf[suspect.id]) + '）' : '';
+  desc.textContent = accuser.name + ' 堵住了 ' + suspect.name + roomText + '，真相终于水落石出。最初的狼人倒下，被感染的人也都清醒过来，你活了下来。';
+}
+
+function resolveAccusation(index){
+  const entry = suspects[index];
+  const suspect = peopleById(entry.suspectId);
+  const viaNpcId = entry.viaNpcId;
+  suspects.splice(index, 1);
+  const correct = suspect.isWerewolf;
+
+  if (correct){
+    // 真凶落网，感染的源头没了，之前被感染的人也都清醒过来；剩下的嫌疑人一并解除嫌疑
+    cureInfections();
+    alive.delete(suspect.id);
+    suspects = [];
+    checkPopulationMilestones();
+    phase = 'over';
+    render();
+    endGameByAccusation(true, suspect);
+    return;
+  }
+
+  if (viaNpcId){
+    // 玩家是"加入"了别人的怀疑：猜错了，代价由最初提出怀疑的邻居来扛，玩家和嫌疑人都没事，游戏继续
+    if (alive.has(viaNpcId)){
+      const accuser = peopleById(viaNpcId);
+      alive.delete(viaNpcId);
+      addLog((accusationViaTrap ? '💥 你的药水找错了对象——' : '💥 你打错了——') + suspect.name + ' 是无辜的。倒是怂恿你的 ' + accuser.name + ' 反遭了殃，你和 ' + suspect.name + ' 都没事。');
+    } else {
+      addLog((accusationViaTrap ? '💥 你的药水找错了对象——' : '💥 你打错了——') + suspect.name + ' 是无辜的。好在怂恿你的人已经先一步不在了，你和 ' + suspect.name + ' 都没事。');
+    }
+    checkPopulationMilestones();
+    if (!checkWinCondition()) render();
+    return;
+  }
+
+  // 玩家自己独立指认，猜错了，直接失败
+  phase = 'over';
+  render();
+  endGameByAccusation(false, suspect);
+}
+
+function endGameByAccusation(won, suspect){
+  markGameOver();
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('game-screen').style.display='none';
+  const endScreen = document.getElementById('end-screen');
+  endScreen.style.display='block';
+  const title = document.getElementById('endTitle');
+  const desc = document.getElementById('endDesc');
+  if (won){
+    title.textContent = '🎯 抓对了！';
+    title.className = 'win';
+    desc.textContent = (accusationViaTrap
+      ? ('你下的药水生效了——' + suspect.name + '（' + roomLabel(roomOf[suspect.id]) + '）一走进去就中招倒地')
+      : ('你堵住了 ' + suspect.name + '（' + roomLabel(roomOf[suspect.id]) + '），一拳揍下去')
+    ) + '——它果然是狼人！公寓恢复平静，被感染的人也都清醒过来。你，赢了。';
+  } else {
+    title.textContent = '💥 你认错人了……';
+    title.className = 'lose';
+    desc.textContent = (accusationViaTrap
+      ? ('你的药水生效了，' + suspect.name + '中了招')
+      : ('你拦住 ' + suspect.name + '，动手就打')
+    ) + '——可它只是个普通邻居。混乱中，真正的狼人反倒趁乱扑了上来……';
+  }
+}
+initStartButton();
+</script>
+</body>
+</html>
